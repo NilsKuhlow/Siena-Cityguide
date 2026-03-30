@@ -2,197 +2,39 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Siena — Una Passeggiata</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Bebas+Neue&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+/* ═══════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════ */
 :root {
-  --siena: #7A2E10;
-  --terra: #C4622D;
-  --sand:  #E8D5B0;
-  --cream: #F5EFE0;
-  --ink:   #1A1209;
-  --gold:  #C49A3C;
-  --muted: #9A8878;
-  --dim:   #4a3a2a;
+  --terra:  #C4622D;
+  --siena:  #7A2E10;
+  --sand:   #E8D5B0;
+  --cream:  #F5EFE0;
+  --ink:    #1A1209;
+  --gold:   #C49A3C;
+  --muted:  #9A8878;
+  --dim:    #4a3a2a;
+  --map-h:  56vh;   /* height of the fixed map strip */
+  --drawer-h: 6rem; /* height of the info drawer */
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-html { overflow-x:hidden; }
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { width:100%; overflow-x:hidden; }
 
 body {
   font-family:'Jost',sans-serif;
   font-weight:300;
   background:var(--cream);
   color:var(--ink);
-  overflow-x:hidden;
 }
 
-/* ─────────────────────────────────────────
-   INTRO — full-screen, normal scroll flow
-───────────────────────────────────────── */
-.intro {
-  height: 100vh;
-  background: var(--ink);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 0 8vw 10vh;
-  position: relative;
-  overflow: hidden;
-  z-index: 10;
-}
-.intro-bg {
-  position:absolute; inset:0;
-  background:
-    radial-gradient(ellipse at 65% 35%, rgba(139,58,26,.45) 0%, transparent 55%),
-    radial-gradient(ellipse at 20% 75%, rgba(196,154,60,.12) 0%, transparent 50%);
-}
-.intro-kicker {
-  font-size:.72rem; letter-spacing:.35em; text-transform:uppercase;
-  color:var(--gold); margin-bottom:1.6rem; position:relative;
-}
-.intro h1 {
-  font-family:'Cormorant Garamond',serif; font-weight:300;
-  font-size:clamp(5rem,14vw,12rem); line-height:.88; letter-spacing:-.02em;
-  color:var(--cream); position:relative;
-}
-.intro h1 em { font-style:italic; color:var(--terra); }
-.intro-sub {
-  font-family:'Cormorant Garamond',serif; font-style:italic;
-  color:var(--muted); font-size:1.05rem;
-  margin-top:1.8rem; max-width:380px; line-height:1.75; position:relative;
-}
-.scroll-cue {
-  position:absolute; bottom:3rem; right:8vw;
-  display:flex; flex-direction:column; align-items:center; gap:.5rem;
-  color:var(--muted); font-size:.62rem; letter-spacing:.25em; text-transform:uppercase;
-}
-.scroll-line {
-  width:1px; height:56px;
-  background:linear-gradient(to bottom, transparent, var(--terra));
-  animation:pulse 2s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
-
-/* ─────────────────────────────────────────
-   JOURNEY WRAPPER
-   Map: fixed left. Scroll: right column only.
-───────────────────────────────────────── */
-#journey {
-  /* takes up scroll space equal to 5 stops × 100vh */
-  height: calc(5 * 100vh);
-  position: relative;
-}
-
-/* Fixed map panel — locked to left half of viewport */
-#map-panel {
-  position: fixed;
-  top: 0; left: 0;
-  width: 55vw; height: 100vh;
-  background: #EDE3CF;
-  z-index: 5;
-  /* hidden until journey starts */
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .5s ease;
-}
-#map-panel.visible {
-  opacity: 1;
-  pointer-events: all;
-}
-#map-panel svg {
-  width: 100%; height: 100%;
-}
-
-/* Right scroll column — sits beside the fixed map */
-#scroll-col {
-  position: absolute;
-  top: 0; left: 55vw;
-  width: 45vw;
-  height: 100%;
-}
-
-/* Each stop section = 1 viewport height */
-.stop-section {
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  padding: 0 5vw;
-}
-
-/* Stop card */
-.stop-card {
-  max-width: 360px;
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity .5s ease, transform .5s ease;
-  pointer-events: none;
-}
-.stop-card.active {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: all;
-}
-
-.card-index { font-family:'Bebas Neue',sans-serif; font-size:5rem; line-height:1; color:var(--terra); opacity:.18; user-select:none; }
-.card-name  { font-family:'Cormorant Garamond',serif; font-weight:600; font-size:2rem; line-height:1.05; margin-top:-.8rem; color:var(--ink); }
-.card-sub   { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:.9rem; color:var(--muted); margin-top:.25rem; }
-.card-rule  { width:36px; height:1px; background:var(--terra); margin:1rem 0; }
-.card-text  { font-size:.84rem; line-height:1.85; color:var(--dim); }
-.card-btn {
-  display:inline-flex; align-items:center; gap:.5rem;
-  margin-top:1.3rem; border:1px solid var(--terra);
-  background:none; color:var(--terra);
-  font-family:'Jost',sans-serif; font-size:.68rem; letter-spacing:.2em; text-transform:uppercase;
-  padding:.65rem 1.3rem; cursor:pointer;
-  transition:background .22s, color .22s;
-}
-.card-btn:hover { background:var(--terra); color:var(--cream); }
-.card-btn span { display:inline-block; transition:transform .22s; }
-.card-btn:hover span { transform:translateX(4px); }
-
-/* ─────────────────────────────────────────
-   OUTRO
-───────────────────────────────────────── */
-.outro {
-  background: var(--ink);
-  padding: 18vh 8vw;
-  text-align: center;
-  position: relative;
-  z-index: 10;
-}
-.outro h2 {
-  font-family:'Cormorant Garamond',serif; font-weight:300; font-style:italic;
-  font-size:clamp(1.8rem,4vw,3.2rem); color:var(--sand); line-height:1.25; margin-bottom:1.2rem;
-}
-.outro p { font-size:.85rem; color:var(--muted); max-width:460px; margin:0 auto; line-height:1.85; }
-.outro-dot { width:5px; height:5px; border-radius:50%; background:var(--terra); margin:2.5rem auto 0; }
-
-/* ─────────────────────────────────────────
-   MAP SVG
-───────────────────────────────────────── */
-.city-block   { fill:#DDD0B5; stroke:#C8B898; stroke-width:.5; }
-.piazza-fill  { fill:#C9936A; opacity:.55; }
-.street       { fill:none; stroke:#C0A882; stroke-width:3.5; }
-.route-future { fill:none; stroke:var(--terra); stroke-width:1.5; stroke-dasharray:5 5; opacity:.2; }
-.route-trail  { fill:none; stroke:var(--terra); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
-.stop-ring    { fill:none; stroke:var(--terra); stroke-width:1; opacity:.3; }
-.stop-dot     { fill:var(--terra); cursor:pointer; }
-.stop-dot.visited    { fill:var(--siena); }
-.stop-dot.active-dot { fill:#e05010; filter:drop-shadow(0 0 7px rgba(220,80,16,.9)); }
-.lbl-district { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:11px; fill:rgba(122,46,16,.28); letter-spacing:.1em; }
-.lbl-street   { font-family:'Jost',sans-serif; font-size:9px; fill:#a09080; }
-.lbl-piazza   { font-family:'Jost',sans-serif; font-size:9px; fill:#7A4020; font-weight:500; }
-.stop-lbl     { font-family:'Jost',sans-serif; font-size:9px; fill:#8B3A1A; font-weight:500; }
-
-@keyframes ripple-anim {
-  0%   { r:10; opacity:.7; }
-  100% { r:26; opacity:0;  }
-}
-
-/* ─────────────────────────────────────────
+/* ═══════════════════════════════════════════
    LOADER
-───────────────────────────────────────── */
+═══════════════════════════════════════════ */
 #loader {
   position:fixed; inset:0;
   display:grid; place-items:center;
@@ -201,332 +43,354 @@ body {
   opacity:1;
   transition:opacity .9s ease;
 }
-#loader.is-hidden {
-  opacity:0;
-  pointer-events:none;
-}
-#loader.is-gone {
-  display:none;
-}
+#loader.out  { opacity:0; pointer-events:none; }
+#loader.gone { display:none; }
+
 .loader-inner {
-  width:min(78vw,680px);
-  display:flex; flex-direction:column;
-  align-items:center; gap:2.4rem;
+  display:flex; flex-direction:column; align-items:center; gap:2.2rem;
   transform:translateY(-2vh);
+  width:min(78vw,480px);
 }
-.campo-wrap {
-  width:min(72vw,520px);
-  aspect-ratio:1.7/1;
-}
+.campo-wrap { width:100%; aspect-ratio:1.7/1; }
+
 .segment {
-  fill:none;
-  stroke:var(--terra);
-  stroke-width:1.8;
-  stroke-linecap:round;
-  stroke-dasharray:320;
-  stroke-dashoffset:320;
-  animation:drawSegment 1.4s cubic-bezier(0.65,0,0.2,1) forwards;
+  fill:none; stroke:var(--terra); stroke-width:1.8; stroke-linecap:round;
+  stroke-dasharray:320; stroke-dashoffset:320;
+  animation:drawSeg 1.4s cubic-bezier(.65,0,.2,1) forwards;
 }
-.segment:nth-child(1)  { animation-delay:.05s; }
-.segment:nth-child(2)  { animation-delay:.10s; }
-.segment:nth-child(3)  { animation-delay:.15s; }
-.segment:nth-child(4)  { animation-delay:.20s; }
-.segment:nth-child(5)  { animation-delay:.25s; }
-.segment:nth-child(6)  { animation-delay:.30s; }
-.segment:nth-child(7)  { animation-delay:.35s; }
-.segment:nth-child(8)  { animation-delay:.40s; }
-.segment:nth-child(9)  { animation-delay:.45s; }
-.segment:nth-child(10) { animation-delay:.50s; }
-@keyframes drawSegment {
-  0%   { stroke-dashoffset:320; opacity:.2; }
-  100% { stroke-dashoffset:0;   opacity:1;  }
+.segment:nth-child(1)  { animation-delay:.05s }
+.segment:nth-child(2)  { animation-delay:.10s }
+.segment:nth-child(3)  { animation-delay:.15s }
+.segment:nth-child(4)  { animation-delay:.20s }
+.segment:nth-child(5)  { animation-delay:.25s }
+.segment:nth-child(6)  { animation-delay:.30s }
+.segment:nth-child(7)  { animation-delay:.35s }
+.segment:nth-child(8)  { animation-delay:.40s }
+.segment:nth-child(9)  { animation-delay:.45s }
+.segment:nth-child(10) { animation-delay:.50s }
+@keyframes drawSeg {
+  0%   { stroke-dashoffset:320; opacity:.2 }
+  100% { stroke-dashoffset:0;   opacity:1  }
 }
 .loader-title {
-  margin:0;
-  font-family:'Cormorant Garamond',serif;
-  font-weight:300;
-  font-size:clamp(2.6rem,7vw,5.6rem);
-  letter-spacing:.04em;
+  font-family:'Cormorant Garamond',serif; font-weight:300;
+  font-size:clamp(2.8rem,10vw,5rem); letter-spacing:.04em;
   color:var(--cream);
-  opacity:0; transform:translateY(18px);
-  animation:revealText .8s cubic-bezier(0.22,1,0.36,1) forwards;
+  opacity:0; transform:translateY(16px);
+  animation:revealTxt .8s cubic-bezier(.22,1,.36,1) forwards;
   animation-delay:.95s;
 }
-.loader-title em { font-style:italic; color:var(--terra); }
-@keyframes revealText {
-  0%   { opacity:0; transform:translateY(18px); }
-  100% { opacity:1; transform:translateY(0);    }
+@keyframes revealTxt {
+  to { opacity:1; transform:none }
 }
 
-/* ─────────────────────────────────────────
-   MOBILE BOTTOM DRAWER
-   Appears over the map when a stop is active
-───────────────────────────────────────── */
-#mob-drawer {
-  display: none; /* only on mobile */
-}
-
-/* ─────────────────────────────────────────
-   MOBILE  ≤ 768 px — portrait
-───────────────────────────────────────── */
-@media (max-width:768px) {
-
-  /* ── Map: always fixed, top portion of screen ── */
-  #map-panel {
-    position: fixed !important;
-    top: 0 !important; left: 0 !important;
-    width: 100vw !important;
-    height: 55vh !important;
-    z-index: 5 !important;
-    opacity: 1 !important;
-    pointer-events: all !important;
-    background: #EDE3CF !important;
-  }
-  #map-panel.mob-hidden {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-  /* ── Journey: invisible scroll space.
-     Starts immediately after intro — no gap.
-     The fixed map + fixed drawer together fill 55vh + drawerH. ── */
-  #journey {
-    height: calc(5 * 100vh) !important;
-    position: relative !important;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-  }
-
-  /* NO body padding-top — journey sits in normal flow after intro */
-  body.journey-active {
-    padding-top: 0 !important;
-  }
-
-  /* ── Scroll col: hidden on mobile ── */
-  #scroll-col { display: none !important; }
-
-  /* ── Outro: no extra margin ── */
-  .outro { margin-top: 0 !important; }
-
-  /* ── Bottom drawer: flush below map, full-width ── */
-  #mob-drawer {
-    display: block;
-    position: fixed;
-    top: 55vh; left: 0; right: 0;
-    z-index: 60;
-    /* starts hidden above its position */
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
-    transition: transform .38s cubic-bezier(.77,0,.175,1), opacity .28s ease;
-  }
-  #mob-drawer.open {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: all;
-  }
-
-  .mob-drawer-handle {
-    background: var(--cream);
-    border-top: 2.5px solid var(--terra);
-    /* generous tap area */
-    padding: 1rem 5vw 1rem;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 1rem;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 -6px 24px rgba(26,18,9,.1);
-  }
-  .mob-drawer-handle-left {
-    display: flex; flex-direction: column; gap: .18rem;
-    flex: 1; min-width: 0;
-  }
-  .mob-handle-num {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: .72rem; letter-spacing: .22em;
-    color: var(--terra); line-height: 1;
-  }
-  .mob-handle-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 600; font-size: 1.3rem; line-height: 1.1;
-    color: var(--ink);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .mob-handle-sub {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic; font-size: .8rem;
-    color: var(--muted);
-  }
-  .mob-drawer-arrow {
-    font-family: 'Jost', sans-serif;
-    font-size: .62rem; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--cream);
-    background: var(--terra);
-    border: none;
-    padding: .6rem 1rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* ── Intro above map ── */
-  .intro { z-index: 20; }
-  .intro h1 { font-size: clamp(4rem, 18vw, 7rem); }
-  .intro-sub { font-size: .95rem; }
-  .scroll-cue { right: 5vw; }
-
-  /* ── Nav crumb: Siena one color ── */
-  .crumb-city { color: var(--cream) !important; font-style: normal !important; }
-
-  /* ── Outro ── */
-  .outro { padding: 10vh 7vw; }
-  .outro h2 { font-size: clamp(1.5rem, 6vw, 2.5rem); }
-
-  /* ── Modal full-screen ── */
-  .modal { width: 100vw !important; }
-
-  /* ── Nav crumb ── */
-  .crumb-stop { font-size: .58rem; }
-
-  /* ── Stop counter: inside map, bottom-left ── */
-  #stop-counter {
-    bottom: calc(45vh + 0.5rem) !important;
-    left: 1rem !important;
-    font-size: .85rem !important;
-  }
-
-  /* ── Hide progress bar on mobile (covered by nav) ── */
-  #progress-bar { height: 2px; }
-}
-
-/* ─────────────────────────────────────────
-   UI CHROME
-───────────────────────────────────────── */
+/* ═══════════════════════════════════════════
+   PROGRESS BAR
+═══════════════════════════════════════════ */
 #progress-bar {
   position:fixed; top:0; left:0; height:2px;
-  background:var(--terra); z-index:100; pointer-events:none;
+  background:var(--terra); z-index:200; pointer-events:none;
+  width:0;
 }
 
-.nav-crumb {
-  position:fixed; top:0; left:0; right:0; z-index:90;
-  padding:1.3rem 2rem;
-  display:flex; align-items:center; gap:1rem;
-  pointer-events:none; opacity:0; transition:opacity .4s;
+/* ═══════════════════════════════════════════
+   NAV CRUMB  (top-left over map)
+═══════════════════════════════════════════ */
+#nav-crumb {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  padding:.9rem 1.2rem;
+  display:flex; align-items:center; gap:.6rem;
+  pointer-events:none;
+  opacity:0; transition:opacity .4s;
 }
-.nav-crumb.show { opacity:1; }
-.crumb-city { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:1rem; color:var(--cream); text-shadow:0 1px 8px rgba(0,0,0,.6); }
-.crumb-sep  { color:var(--terra); }
-.crumb-stop { font-size:.68rem; letter-spacing:.18em; text-transform:uppercase; color:var(--sand); text-shadow:0 1px 8px rgba(0,0,0,.6); }
+#nav-crumb.show { opacity:1; }
+.crumb-city {
+  font-family:'Cormorant Garamond',serif;
+  font-size:.95rem; color:var(--cream);
+  text-shadow:0 1px 8px rgba(0,0,0,.6);
+}
+.crumb-sep  { color:var(--terra); font-size:.8rem; }
+.crumb-stop {
+  font-size:.6rem; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--sand); text-shadow:0 1px 8px rgba(0,0,0,.6);
+}
 
-/* Stop counter badge on map */
+/* ═══════════════════════════════════════════
+   INTRO  (full viewport, normal flow)
+═══════════════════════════════════════════ */
+.intro {
+  height:100vh;
+  background:var(--ink);
+  display:flex; flex-direction:column; justify-content:flex-end;
+  padding:0 8vw 10vh;
+  position:relative; overflow:hidden;
+  z-index:10; /* above map during scroll */
+}
+.intro-bg {
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse at 65% 35%, rgba(139,58,26,.45) 0%, transparent 55%),
+    radial-gradient(ellipse at 20% 75%, rgba(196,154,60,.12) 0%, transparent 50%);
+}
+.intro-kicker {
+  font-size:.68rem; letter-spacing:.35em; text-transform:uppercase;
+  color:var(--gold); margin-bottom:1.4rem; position:relative;
+}
+.intro h1 {
+  font-family:'Cormorant Garamond',serif; font-weight:300;
+  font-size:clamp(4.5rem,18vw,8rem); line-height:.88; letter-spacing:-.02em;
+  color:var(--cream); position:relative;
+}
+.intro h1 em { font-style:italic; color:var(--terra); }
+.intro-sub {
+  font-family:'Cormorant Garamond',serif; font-style:italic;
+  color:var(--muted); font-size:.95rem;
+  margin-top:1.6rem; line-height:1.75; position:relative;
+}
+.scroll-cue {
+  position:absolute; bottom:2.5rem; right:8vw;
+  display:flex; flex-direction:column; align-items:center; gap:.4rem;
+  color:var(--muted); font-size:.58rem; letter-spacing:.25em; text-transform:uppercase;
+}
+.scroll-line {
+  width:1px; height:48px;
+  background:linear-gradient(to bottom, transparent, var(--terra));
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+/* ═══════════════════════════════════════════
+   MAP PANEL  — fixed, full width, top portion
+   Hidden during intro, revealed on scroll
+═══════════════════════════════════════════ */
+#map-panel {
+  position:fixed;
+  top:0; left:0;
+  width:100vw; height:var(--map-h);
+  background:#EDE3CF;
+  z-index:5;
+
+  /* start state: slightly scaled up + invisible */
+  opacity:0;
+  transform:scale(1.04);
+  pointer-events:none;
+  transition:
+    opacity   .7s ease,
+    transform .7s cubic-bezier(.22,1,.36,1);
+}
+#map-panel.map-intro {
+  /* first reveal: fade + scale down */
+  opacity:1;
+  transform:scale(1);
+  pointer-events:all;
+}
+#map-panel svg { width:100%; height:100%; }
+
+/* ═══════════════════════════════════════════
+   JOURNEY  — invisible scroll space
+   Sits immediately after the intro section.
+   Height = 5 stops × 100vh
+   No margin, no padding — drawer is fixed.
+═══════════════════════════════════════════ */
+#journey {
+  height:calc(5 * 100vh);
+  position:relative;
+  /* background matches cream so it's invisible */
+  background:transparent;
+}
+
+/* ═══════════════════════════════════════════
+   DRAWER  — fixed, flush below map
+   Slides down from map bottom when active
+═══════════════════════════════════════════ */
+#drawer {
+  position:fixed;
+  top:var(--map-h); left:0; right:0;
+  z-index:50;
+  /* hidden: slide up behind map */
+  transform:translateY(-100%);
+  opacity:0;
+  pointer-events:none;
+  transition:
+    transform .4s cubic-bezier(.77,0,.175,1),
+    opacity   .3s ease;
+}
+#drawer.open {
+  transform:translateY(0);
+  opacity:1;
+  pointer-events:all;
+}
+.drawer-inner {
+  background:var(--cream);
+  border-top:2.5px solid var(--terra);
+  padding:1rem 5vw;
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  box-shadow:0 6px 32px rgba(26,18,9,.12);
+  cursor:pointer;
+  /* generous touch target */
+  min-height:var(--drawer-h);
+}
+.drawer-left { display:flex; flex-direction:column; gap:.15rem; flex:1; min-width:0; }
+.drawer-num  {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:.7rem; letter-spacing:.22em;
+  color:var(--terra); line-height:1;
+}
+.drawer-name {
+  font-family:'Cormorant Garamond',serif; font-weight:600;
+  font-size:1.35rem; line-height:1.1; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.drawer-sub {
+  font-family:'Cormorant Garamond',serif; font-style:italic;
+  font-size:.78rem; color:var(--muted);
+}
+.drawer-btn {
+  font-family:'Jost',sans-serif;
+  font-size:.6rem; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--cream); background:var(--terra);
+  padding:.65rem 1.1rem;
+  white-space:nowrap; flex-shrink:0;
+  border:none;
+}
+
+/* stop counter — bottom-left inside map */
 #stop-counter {
-  position:fixed; bottom:2rem; left:1.5rem; z-index:20;
-  font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:.15em;
+  position:fixed;
+  bottom:calc(100vh - var(--map-h) + .6rem);
+  /* = just inside bottom of map */
+  left:1rem;
+  z-index:20;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:.8rem; letter-spacing:.15em;
   color:var(--terra); opacity:0; transition:opacity .4s;
 }
 #stop-counter.show { opacity:1; }
 
-/* ─────────────────────────────────────────
+/* ═══════════════════════════════════════════
+   OUTRO
+═══════════════════════════════════════════ */
+.outro {
+  background:var(--ink);
+  padding:12vh 8vw;
+  text-align:center;
+  position:relative; z-index:10;
+}
+.outro h2 {
+  font-family:'Cormorant Garamond',serif; font-weight:300; font-style:italic;
+  font-size:clamp(1.6rem,6vw,2.8rem);
+  color:var(--sand); line-height:1.25; margin-bottom:1rem;
+}
+.outro p { font-size:.82rem; color:var(--muted); line-height:1.85; }
+.outro-dot { width:5px; height:5px; border-radius:50%; background:var(--terra); margin:2rem auto 0; }
+
+/* ═══════════════════════════════════════════
+   MAP SVG  styles
+═══════════════════════════════════════════ */
+.city-block  { fill:#DDD0B5; stroke:#C8B898; stroke-width:.5; }
+.piazza-fill { fill:#C9936A; opacity:.55; }
+.street      { fill:none; stroke:#C0A882; stroke-width:3.5; }
+.route-future{ fill:none; stroke:var(--terra); stroke-width:1.5; stroke-dasharray:5 5; opacity:.18; }
+.route-trail { fill:none; stroke:var(--terra); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.stop-ring   { fill:none; stroke:var(--terra); stroke-width:1; opacity:.3; }
+.stop-dot    { fill:var(--terra); cursor:pointer; }
+.stop-dot.visited    { fill:var(--siena); opacity:.7; }
+.stop-dot.active-dot { fill:#e05010; filter:drop-shadow(0 0 6px rgba(220,80,16,.8)); }
+.lbl-district{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:11px; fill:rgba(122,46,16,.28); letter-spacing:.1em; }
+.lbl-street  { font-family:'Jost',sans-serif; font-size:9px; fill:#a09080; }
+.lbl-piazza  { font-family:'Jost',sans-serif; font-size:9px; fill:#7A4020; font-weight:500; }
+.stop-lbl    { font-family:'Jost',sans-serif; font-size:9px; fill:#8B3A1A; font-weight:500; }
+@keyframes ripple-anim {
+  0%   { r:10; opacity:.7 }
+  100% { r:26; opacity:0  }
+}
+
+/* ═══════════════════════════════════════════
    MODAL
-───────────────────────────────────────── */
-.modal-backdrop {
+═══════════════════════════════════════════ */
+#backdrop {
   position:fixed; inset:0;
   background:rgba(26,18,9,.65); backdrop-filter:blur(5px);
-  z-index:200; opacity:0; pointer-events:none; transition:opacity .35s;
+  z-index:300; opacity:0; pointer-events:none; transition:opacity .35s;
 }
-.modal-backdrop.open { opacity:1; pointer-events:all; }
+#backdrop.open { opacity:1; pointer-events:all; }
 
-.modal {
+#modal {
   position:fixed; top:0; right:0;
-  width:min(520px,96vw); height:100vh;
-  background:var(--cream); z-index:201;
+  width:100vw; height:100vh;
+  background:var(--cream); z-index:301;
   transform:translateX(100%);
   transition:transform .5s cubic-bezier(.77,0,.175,1);
   overflow-y:auto; display:flex; flex-direction:column;
 }
-.modal.open { transform:translateX(0); }
+#modal.open { transform:translateX(0); }
 
 .modal-close {
   position:absolute; top:1rem; right:1rem;
-  width:34px; height:34px; border-radius:50%;
+  width:36px; height:36px; border-radius:50%;
   background:rgba(26,18,9,.45); border:none; color:#fff;
-  font-size:1rem; cursor:pointer; z-index:5;
-  display:flex; align-items:center; justify-content:center; transition:background .2s;
+  font-size:1.1rem; cursor:pointer; z-index:5;
+  display:flex; align-items:center; justify-content:center;
 }
-.modal-close:hover { background:var(--siena); }
 
 /* Gallery */
-.modal-gallery { position:relative; width:100%; height:270px; overflow:hidden; background:var(--sand); flex-shrink:0; }
+.modal-gallery { position:relative; width:100%; height:52vw; min-height:200px; max-height:280px; overflow:hidden; background:var(--sand); flex-shrink:0; }
 .gallery-slides { display:flex; height:100%; transition:transform .45s cubic-bezier(.77,0,.175,1); }
 .gallery-slide  { min-width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-.slide-bg   { position:absolute; inset:0; }
-.slide-icon { position:absolute; font-size:4rem; opacity:.2; }
-.slide-caption {
-  position:absolute; bottom:0; left:0; right:0;
-  background:linear-gradient(transparent,rgba(20,10,5,.65));
-  padding:2rem 1.5rem .8rem;
-  font-family:'Cormorant Garamond',serif; font-style:italic;
-  font-size:.85rem; color:rgba(255,255,255,.9);
-  text-shadow:0 1px 5px rgba(0,0,0,.4);
-}
-.gallery-nav { position:absolute; bottom:.75rem; left:50%; transform:translateX(-50%); display:flex; gap:.4rem; z-index:2; }
-.gallery-pip { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.4); cursor:pointer; transition:background .2s, transform .2s; }
-.gallery-pip.on { background:#fff; transform:scale(1.3); }
-.gallery-arrow {
-  position:absolute; top:50%; transform:translateY(-50%);
-  background:rgba(26,18,9,.35); border:none; color:white;
-  width:32px; height:32px; border-radius:50%;
-  font-size:.9rem; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  transition:background .2s; z-index:2;
-}
-.gallery-arrow:hover { background:rgba(26,18,9,.7); }
-.gallery-arrow.prev { left:.7rem; }
-.gallery-arrow.next { right:.7rem; }
+.slide-bg    { position:absolute; inset:0; }
+.slide-icon  { position:absolute; font-size:3.5rem; opacity:.2; }
+.slide-cap   { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(20,10,5,.65)); padding:2rem 1.2rem .8rem; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:.82rem; color:rgba(255,255,255,.9); }
+.gallery-nav { position:absolute; bottom:.65rem; left:50%; transform:translateX(-50%); display:flex; gap:.4rem; z-index:2; }
+.gal-pip     { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.4); cursor:pointer; transition:background .2s, transform .2s; }
+.gal-pip.on  { background:#fff; transform:scale(1.3); }
+.gal-arr     { position:absolute; top:50%; transform:translateY(-50%); background:rgba(26,18,9,.35); border:none; color:white; width:32px; height:32px; border-radius:50%; font-size:.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:2; }
+.gal-arr.prev{ left:.6rem; }
+.gal-arr.next{ right:.6rem; }
 
 /* Modal body */
-.modal-body  { padding:1.8rem 2rem 3rem; }
-.modal-num   { font-family:'Bebas Neue',sans-serif; font-size:.85rem; letter-spacing:.2em; color:var(--terra); margin-bottom:.4rem; }
-.modal-title { font-family:'Cormorant Garamond',serif; font-weight:600; font-size:2rem; line-height:1.05; color:var(--ink); }
-.modal-sub   { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:.95rem; color:var(--muted); display:block; margin-top:.2rem; }
-.modal-rule  { width:36px; height:1px; background:var(--terra); margin:1.3rem 0; }
-.modal-text  { font-size:.88rem; line-height:1.9; color:var(--dim); margin-bottom:.9rem; }
-.modal-facts { display:grid; grid-template-columns:1fr 1fr; gap:.85rem; margin-top:1.5rem; }
-.fact     { background:var(--sand); padding:.75rem 1rem; }
-.fact-lbl { font-size:.58rem; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); margin-bottom:.2rem; }
-.fact-val { font-family:'Cormorant Garamond',serif; font-size:.98rem; color:var(--ink); }
+.modal-body  { padding:1.6rem 1.4rem 3rem; }
+.modal-num   { font-family:'Bebas Neue',sans-serif; font-size:.82rem; letter-spacing:.22em; color:var(--terra); margin-bottom:.35rem; }
+.modal-title { font-family:'Cormorant Garamond',serif; font-weight:600; font-size:1.9rem; line-height:1.05; color:var(--ink); }
+.modal-sub   { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:.9rem; color:var(--muted); display:block; margin-top:.2rem; }
+.modal-rule  { width:32px; height:1px; background:var(--terra); margin:1.1rem 0; }
+.modal-text  { font-size:.85rem; line-height:1.9; color:var(--dim); margin-bottom:.8rem; }
+.modal-facts { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-top:1.3rem; }
+.fact        { background:var(--sand); padding:.7rem .85rem; }
+.fact-lbl    { font-size:.55rem; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); margin-bottom:.15rem; }
+.fact-val    { font-family:'Cormorant Garamond',serif; font-size:.95rem; color:var(--ink); }
 </style>
 </head>
 <body>
 
-<!-- ═══ LOADER ═══ -->
+<!-- LOADER -->
 <div id="loader">
   <div class="loader-inner">
     <svg class="campo-wrap" viewBox="0 0 600 360" aria-hidden="true">
-      <path class="segment" d="M300 320 Q184 286 58 236" />
-      <path class="segment" d="M300 320 Q200 278 88 206" />
-      <path class="segment" d="M300 320 Q220 270 126 174" />
-      <path class="segment" d="M300 320 Q244 260 176 144" />
-      <path class="segment" d="M300 320 Q272 248 244 118" />
-      <path class="segment" d="M300 320 Q328 248 356 118" />
-      <path class="segment" d="M300 320 Q356 260 424 144" />
-      <path class="segment" d="M300 320 Q380 270 474 174" />
-      <path class="segment" d="M300 320 Q400 278 512 206" />
-      <path class="segment" d="M300 320 Q416 286 542 236" />
+      <path class="segment" d="M300 320 Q184 286 58 236"/>
+      <path class="segment" d="M300 320 Q200 278 88 206"/>
+      <path class="segment" d="M300 320 Q220 270 126 174"/>
+      <path class="segment" d="M300 320 Q244 260 176 144"/>
+      <path class="segment" d="M300 320 Q272 248 244 118"/>
+      <path class="segment" d="M300 320 Q328 248 356 118"/>
+      <path class="segment" d="M300 320 Q356 260 424 144"/>
+      <path class="segment" d="M300 320 Q380 270 474 174"/>
+      <path class="segment" d="M300 320 Q400 278 512 206"/>
+      <path class="segment" d="M300 320 Q416 286 542 236"/>
     </svg>
     <h1 class="loader-title">Siena</h1>
   </div>
 </div>
 
-<!-- Chrome -->
+<!-- CHROME -->
 <div id="progress-bar"></div>
-<div class="nav-crumb" id="navCrumb">
+<div id="nav-crumb">
   <span class="crumb-city">Siena</span>
   <span class="crumb-sep">—</span>
-  <span class="crumb-stop" id="crumbStop"></span>
+  <span id="crumb-stop" class="crumb-stop"></span>
 </div>
 <div id="stop-counter"></div>
 
-<!-- ═══ INTRO ═══ -->
+<!-- INTRO -->
 <section class="intro">
   <div class="intro-bg"></div>
   <span class="intro-kicker">Ein Stadtführer · Toscana · Italia</span>
@@ -538,7 +402,7 @@ body {
   </div>
 </section>
 
-<!-- ═══ FIXED MAP ═══ -->
+<!-- MAP (fixed) -->
 <div id="map-panel">
   <svg id="mapSvg" viewBox="48 0 240 272" preserveAspectRatio="xMidYMid meet">
 
@@ -580,21 +444,20 @@ body {
       <path d="M520,115 Q510,168 480,218 Q430,258 350,290"/>
     </g>
 
-    <!-- Future route (dim dashes) -->
+    <!-- Future route dim dashes -->
     <path class="route-future"
       d="M148,92 Q205,118 262,158 Q305,192 340,268 Q346,280 350,290 Q352,308 350,330 Q348,390 340,448"/>
 
-    <!-- Live drawn trail -->
+    <!-- Live trail -->
     <path class="route-trail" id="routeTrail" d=""/>
 
-    <!-- Smooth-moving traveller dot -->
+    <!-- Traveller dot — moves smoothly along route -->
     <circle id="traveller" cx="148" cy="92" r="6"
       fill="var(--terra)"
       filter="drop-shadow(0 0 5px rgba(196,98,45,.9))"
-      opacity="0"
-      style="transition: opacity .3s ease;"/>
+      opacity="0"/>
 
-    <!-- Ripple rings -->
+    <!-- Ripple rings per stop -->
     <circle id="rp0" cx="148" cy="92"  r="9" fill="none" stroke="var(--terra)" stroke-width="1.5" opacity="0"/>
     <circle id="rp1" cx="262" cy="158" r="9" fill="none" stroke="var(--terra)" stroke-width="1.5" opacity="0"/>
     <circle id="rp2" cx="350" cy="290" r="9" fill="none" stroke="var(--terra)" stroke-width="1.5" opacity="0"/>
@@ -608,25 +471,21 @@ body {
     <circle class="stop-ring" cx="350" cy="330" r="15"/>
     <circle class="stop-ring" cx="340" cy="448" r="15"/>
 
-    <!-- Clickable dots — click scrolls to that station -->
+    <!-- Clickable stop dots -->
     <circle class="stop-dot" id="dot0" cx="148" cy="92"  r="7" onclick="scrollToStop(0)"/>
     <circle class="stop-dot" id="dot1" cx="262" cy="158" r="7" onclick="scrollToStop(1)"/>
     <circle class="stop-dot" id="dot2" cx="350" cy="290" r="7" onclick="scrollToStop(2)"/>
     <circle class="stop-dot" id="dot3" cx="350" cy="330" r="7" onclick="scrollToStop(3)"/>
     <circle class="stop-dot" id="dot4" cx="340" cy="448" r="7" onclick="scrollToStop(4)"/>
 
-    <!-- District labels -->
+    <!-- Labels -->
     <text class="lbl-district" x="145" y="172" transform="rotate(-8,145,172)">Terzo di Camollia</text>
     <text class="lbl-district" x="368" y="425" transform="rotate(-5,368,425)">Terzo di San Martino</text>
     <text class="lbl-district" x="455" y="270" transform="rotate(-5,455,270)">Terzo di Città</text>
-
-    <!-- Street labels -->
     <text class="lbl-street" x="185" y="140">Via di Camollia</text>
     <text class="lbl-street" x="278" y="230">Banchi di Sopra</text>
     <text class="lbl-piazza" x="350" y="283" text-anchor="middle">Il Campo</text>
     <text class="lbl-street" x="352" y="392" text-anchor="middle">Via di Città</text>
-
-    <!-- Stop labels -->
     <text class="stop-lbl" x="165" y="88">① Porta Camollia</text>
     <text class="stop-lbl" x="278" y="154">② Piazza Salimbeni</text>
     <text class="stop-lbl" x="366" y="283">③ Il Campo</text>
@@ -639,149 +498,64 @@ body {
       <text y="-20" text-anchor="middle" font-size="8" fill="#9A8878" font-family="Jost,sans-serif">N</text>
       <line y1="-12" y2="12" stroke="#9A8878" stroke-width="1"/>
       <line x1="-12" x2="12" stroke="#9A8878" stroke-width=".5"/>
-      <polygon points="0,-11 2.5,0 0,-4 -2.5,0" fill="#C4622D"/>
+      <polygon points="0,-11 2.5,0 0,-4 -2.5,0" fill="var(--terra)"/>
     </g>
-    <!-- Scale -->
-    <g transform="translate(40,672)" opacity=".4">
-      <line x2="70" stroke="#9A8878" stroke-width="1"/>
-      <line y1="-4" y2="4" stroke="#9A8878" stroke-width="1"/>
-      <line x1="70" y1="-4" x2="70" y2="4" stroke="#9A8878" stroke-width="1"/>
-      <text x="35" y="-7" text-anchor="middle" font-size="7.5" fill="#9A8878" font-family="Jost,sans-serif">500 m</text>
-    </g>
-
   </svg>
 </div>
 
-<!-- ═══ JOURNEY (scroll space + right column) ═══ -->
-<div id="journey">
-  <div id="scroll-col">
+<!-- JOURNEY (scroll space only — no visible content) -->
+<div id="journey"></div>
 
-    <div class="stop-section" id="sec0">
-      <div class="stop-card" id="card0">
-        <div class="card-index">01</div>
-        <div class="card-name">Porta<br>Camollia</div>
-        <div class="card-sub">Das Stadttor des Willkommens</div>
-        <div class="card-rule"></div>
-        <p class="card-text">Der nördliche Eingang Sienas — eine Schwelle zwischen offenem Hügelland und der dichten mittelalterlichen Stadt. Hier begann die Via Francigena.</p>
-        <button class="card-btn" onclick="openModal(0)">Mehr erfahren &nbsp;<span>→</span></button>
-      </div>
+<!-- DRAWER (fixed below map) -->
+<div id="drawer">
+  <div class="drawer-inner" onclick="openModal(activeStop)">
+    <div class="drawer-left">
+      <div class="drawer-num"  id="drawer-num">Station 01</div>
+      <div class="drawer-name" id="drawer-name">—</div>
+      <div class="drawer-sub"  id="drawer-sub">—</div>
     </div>
-
-    <div class="stop-section" id="sec1">
-      <div class="stop-card" id="card1">
-        <div class="card-index">02</div>
-        <div class="card-name">Piazza<br>Salimbeni</div>
-        <div class="card-sub">Macht und Memoria</div>
-        <div class="card-rule"></div>
-        <p class="card-text">Drei Epochen — Gotik, Renaissance, Barock — bilden einen einzigen, ruhigen Platzraum. Hier sitzt die älteste Bank der Welt.</p>
-        <button class="card-btn" onclick="openModal(1)">Mehr erfahren &nbsp;<span>→</span></button>
-      </div>
-    </div>
-
-    <div class="stop-section" id="sec2">
-      <div class="stop-card" id="card2">
-        <div class="card-index">03</div>
-        <div class="card-name">Piazza<br>del Campo</div>
-        <div class="card-sub">Das Herz der Stadt</div>
-        <div class="card-rule"></div>
-        <p class="card-text">Muschelförmig, leicht geneigt, in neun Segmente geteilt: einer der bedeutendsten mittelalterlichen Stadträume Europas.</p>
-        <button class="card-btn" onclick="openModal(2)">Mehr erfahren &nbsp;<span>→</span></button>
-      </div>
-    </div>
-
-    <div class="stop-section" id="sec3">
-      <div class="stop-card" id="card3">
-        <div class="card-index">04</div>
-        <div class="card-name">Palazzo<br>Pubblico</div>
-        <div class="card-sub">Architektur als politisches Manifest</div>
-        <div class="card-rule"></div>
-        <p class="card-text">102 m hoher Torre del Mangia als weltliches Gegengewicht zum Dom. Lorenzettis Freskenzyklus von 1338 gilt als frühestes Stadtbild Europas.</p>
-        <button class="card-btn" onclick="openModal(3)">Mehr erfahren &nbsp;<span>→</span></button>
-      </div>
-    </div>
-
-    <div class="stop-section" id="sec4">
-      <div class="stop-card" id="card4">
-        <div class="card-index">05</div>
-        <div class="card-name">Duomo<br>di Siena</div>
-        <div class="card-sub">Marmor, Licht und Ambition</div>
-        <div class="card-rule"></div>
-        <p class="card-text">Ein Dom, der sich selbst überbieten wollte und im Fragment verharrte. Die Pest von 1348 stoppte den größten Kirchenbau der Toskana.</p>
-        <button class="card-btn" onclick="openModal(4)">Mehr erfahren &nbsp;<span>→</span></button>
-      </div>
-    </div>
-
+    <div class="drawer-btn">Mehr erfahren →</div>
   </div>
 </div>
 
-<!-- ═══ OUTRO ═══ -->
+<!-- OUTRO -->
 <div class="outro">
   <h2>La città è un libro.<br>Leggerla è già viaggiare.</h2>
   <p>Siena ist mehr als eine Ansammlung von Bauwerken — sie ist ein kohärentes räumliches Narrativ, das man liest, indem man sie geht.</p>
   <div class="outro-dot"></div>
 </div>
 
-<!-- ═══ MODAL ═══ -->
-<div class="modal-backdrop" id="backdrop" onclick="closeModal()"></div>
-<div class="modal" id="modal">
+<!-- MODAL -->
+<div id="backdrop" onclick="closeModal()"></div>
+<div id="modal">
   <button class="modal-close" onclick="closeModal()">✕</button>
   <div class="modal-gallery">
     <div class="gallery-slides" id="galSlides"></div>
     <div class="gallery-nav"    id="galNav"></div>
-    <button class="gallery-arrow prev" onclick="galStep(-1)">‹</button>
-    <button class="gallery-arrow next" onclick="galStep(+1)">›</button>
+    <button class="gal-arr prev" onclick="galStep(-1)">‹</button>
+    <button class="gal-arr next" onclick="galStep(+1)">›</button>
   </div>
   <div class="modal-body" id="modalBody"></div>
 </div>
 
-<!-- ═══ MOBILE BOTTOM DRAWER ═══ -->
-<div id="mob-drawer">
-  <div class="mob-drawer-handle" onclick="openModal(activeStop)">
-    <div class="mob-drawer-handle-left">
-      <div class="mob-handle-num" id="mob-num">Station 01</div>
-      <div class="mob-handle-name" id="mob-name">—</div>
-      <div class="mob-handle-sub" id="mob-sub">—</div>
-    </div>
-    <div class="mob-drawer-arrow">Mehr erfahren →</div>
-  </div>
-</div>
-
 <script>
-/* ── LOADER ── */
-(function() {
-  const loader = document.getElementById('loader');
-  function dismiss() {
-    loader.classList.add('is-hidden');
-    loader.addEventListener('transitionend', () => loader.classList.add('is-gone'), { once: true });
-    // hard fallback: force gone after 1.5s regardless
-    setTimeout(() => loader.classList.add('is-gone'), 1500);
+/* ═══════════════════════════════
+   LOADER
+═══════════════════════════════ */
+(function(){
+  const el = document.getElementById('loader');
+  function dismiss(){
+    el.classList.add('out');
+    el.addEventListener('transitionend', () => el.classList.add('gone'), { once:true });
+    setTimeout(() => el.classList.add('gone'), 1500); // fallback
   }
-  // Dismiss after animations complete (segments: ~1.9s, title: ~1.75s)
-  setTimeout(dismiss, 2000);
-  // Safety net: if somehow stuck after 4s, force remove
-  setTimeout(() => { loader.classList.add('is-hidden'); loader.classList.add('is-gone'); }, 4000);
+  setTimeout(dismiss, 2100);
+  setTimeout(() => { el.classList.add('out'); el.classList.add('gone'); }, 5000); // hard fallback
 })();
 
-/* ── SCROLL TO STOP ── */
-function scrollToStop(idx) {
-  /* Both desktop and mobile: journey sections are each 100vh tall.
-     Find the absolute top of #journey then add idx * 100vh. */
-  const journey = document.getElementById('journey');
-  const journeyTop = journey.getBoundingClientRect().top + window.scrollY;
-  const target = journeyTop + idx * window.innerHeight;
-  window.scrollTo({ top: target, behavior: 'smooth' });
-}
-
-/* ── MOBILE: show all cards immediately ── */
-function applyMobileCards() {
-  if (window.innerWidth <= 768) {
-    document.querySelectorAll('.stop-card').forEach(c => c.classList.add('active'));
-  }
-}
-applyMobileCards();
-window.addEventListener('resize', applyMobileCards);
-
-/* ── DATA ── */
+/* ═══════════════════════════════
+   DATA
+═══════════════════════════════ */
 const STOPS = [
   {
     num:"01", name:"Porta Camollia", sub:"Das Stadttor des Willkommens",
@@ -791,66 +565,68 @@ const STOPS = [
     ],
     facts:[{l:"Stil",v:"Manierismus, 1604"},{l:"Terzo",v:"Terzo di Camollia"},{l:"Funktion",v:"Stadttor / Nordeingang"},{l:"Pilgerpfad",v:"Via Francigena"}],
     slides:[
-      {bg:"linear-gradient(135deg,#5a3010,#a06030)",icon:"🏛️",cap:"Porta Camollia — Nordansicht mit Bogenöffnung"},
-      {bg:"linear-gradient(135deg,#3a4a20,#7a9040)",icon:"🌿",cap:"Toskanische Landschaft vor den Toren Sienas"},
-      {bg:"linear-gradient(135deg,#2a2030,#604080)",icon:"✍️",cap:"Inschrift: Cor magis tibi Sena pandit — 1604"}
+      {bg:"linear-gradient(135deg,#5a3010,#a06030)",icon:"🏛️",cap:"Porta Camollia — Nordansicht"},
+      {bg:"linear-gradient(135deg,#3a4a20,#7a9040)",icon:"🌿",cap:"Toskanische Landschaft vor den Toren"},
+      {bg:"linear-gradient(135deg,#2a2030,#604080)",icon:"✍️",cap:"Inschrift: Cor magis tibi Sena pandit"}
     ]
   },
   {
     num:"02", name:"Piazza Salimbeni", sub:"Macht und Memoria",
     paras:[
-      `Die Piazza Salimbeni versammelt drei Jahrhunderte Palastarchitektur in erstaunlicher Harmonie: das gotische Palazzo Salimbeni (14. Jhd.), das Renaissance-Palazzo Spannocchi (1470) und das Palazzo Tantucci (Barock).`,
-      `Seit dem 14. Jahrhundert residiert hier die <em>Monte dei Paschi di Siena</em> — gegründet 1472, die älteste noch aktive Bank der Welt. Der Platz zeigt, wie unterschiedliche Epochen einen kohärenten Raum ergeben können.`
+      `Die Piazza Salimbeni versammelt drei Jahrhunderte Palastarchitektur: das gotische Palazzo Salimbeni (14. Jhd.), das Renaissance-Palazzo Spannocchi (1470) und das Palazzo Tantucci (Barock).`,
+      `Seit dem 14. Jahrhundert residiert hier die <em>Monte dei Paschi di Siena</em> — gegründet 1472, die älteste noch aktive Bank der Welt.`
     ],
     facts:[{l:"Älteste Bank",v:"Monte dei Paschi, 1472"},{l:"Stile",v:"Gotik, Renaissance, Barock"},{l:"Terzo",v:"Terzo di Camollia"},{l:"Platztyp",v:"Piazza chiusa"}],
     slides:[
-      {bg:"linear-gradient(135deg,#40200a,#905030)",icon:"🏦",cap:"Palazzo Salimbeni — gotische Zinnenbekrönung"},
-      {bg:"linear-gradient(135deg,#20303a,#407080)",icon:"🔱",cap:"Palazzo Spannocchi — Renaissancefassade, 1470"},
-      {bg:"linear-gradient(135deg,#382820,#806050)",icon:"⚖️",cap:"Piazza Salimbeni — Gesamtansicht der drei Epochen"}
+      {bg:"linear-gradient(135deg,#40200a,#905030)",icon:"🏦",cap:"Palazzo Salimbeni — gotische Zinnen"},
+      {bg:"linear-gradient(135deg,#20303a,#407080)",icon:"🔱",cap:"Palazzo Spannocchi — Renaissance, 1470"},
+      {bg:"linear-gradient(135deg,#382820,#806050)",icon:"⚖️",cap:"Piazza Salimbeni — Gesamtansicht"}
     ]
   },
   {
     num:"03", name:"Piazza del Campo", sub:"Das Herz der Stadt",
     paras:[
-      `Die Piazza del Campo gilt als einer der bedeutendsten mittelalterlichen Stadträume der Welt. Ihre muschelförmige Gestalt entstand durch natürliche Topografie und bewusste Stadtplanung des 13. Jahrhunderts.`,
-      `Neun radiale Segmente aus Ziegelstein symbolisieren die Mitglieder des Stadtrats — eine in Stein codierte Verfassung. Beim <em>Palio di Siena</em> verwandelt sich der Platz zweimal jährlich in eine Rennbahn der 17 Contrade.`
+      `Die Piazza del Campo gilt als einer der bedeutendsten mittelalterlichen Stadträume der Welt. Ihre muschelförmige Gestalt entstand durch natürliche Topografie und Stadtplanung des 13. Jahrhunderts.`,
+      `Neun radiale Segmente aus Ziegelstein symbolisieren die Mitglieder des Stadtrats. Beim <em>Palio di Siena</em> verwandelt sich der Platz zweimal jährlich in eine Rennbahn der 17 Contrade.`
     ],
     facts:[{l:"Fläche",v:"ca. 5.000 m²"},{l:"Entstehung",v:"13.–14. Jhd."},{l:"UNESCO",v:"Welterbe seit 1995"},{l:"Event",v:"Palio di Siena, 2×/Jahr"}],
     slides:[
-      {bg:"linear-gradient(135deg,#6a2010,#c06030)",icon:"🐚",cap:"Piazza del Campo — muschelförmige Topografie"},
+      {bg:"linear-gradient(135deg,#6a2010,#c06030)",icon:"🐚",cap:"Piazza del Campo — Luftperspektive"},
       {bg:"linear-gradient(135deg,#503020,#a07040)",icon:"🏇",cap:"Il Palio — Pferderennen auf dem Campo"},
-      {bg:"linear-gradient(135deg,#202838,#405878)",icon:"🌙",cap:"Piazza del Campo bei Nacht — Licht und Stille"}
+      {bg:"linear-gradient(135deg,#202838,#405878)",icon:"🌙",cap:"Piazza del Campo bei Nacht"}
     ]
   },
   {
     num:"04", name:"Palazzo Pubblico", sub:"Architektur als politisches Manifest",
     paras:[
-      `Der Palazzo Pubblico (1297–1310) markiert am Campo die weltliche Autorität der Comune gegenüber der kirchlichen Macht des Doms. Der <em>Torre del Mangia</em> misst 102 m — absichtlich auf gleicher Höhe mit dem Domcampanile.`,
-      `Im Inneren: Ambrogio Lorenzettis Freskenzyklus <em>„Allegorie der guten und schlechten Regierung"</em> (1338–40) — eines der frühesten Stadtbilder Europas und politische Theorie in Farbe.`
+      `Der Palazzo Pubblico (1297–1310) markiert am Campo die weltliche Autorität der Comune. Der <em>Torre del Mangia</em> misst 102 m — absichtlich auf gleicher Höhe mit dem Domcampanile.`,
+      `Im Inneren: Ambrogio Lorenzettis Freskenzyklus <em>„Allegorie der guten und schlechten Regierung"</em> (1338–40) — eines der frühesten Stadtbilder Europas.`
     ],
     facts:[{l:"Erbaut",v:"1297–1310"},{l:"Torre del Mangia",v:"102 m hoch"},{l:"Fresko",v:"Lorenzetti, 1338–40"},{l:"Stil",v:"Gotik, Ziegelstein"}],
     slides:[
-      {bg:"linear-gradient(135deg,#4a2808,#8a5020)",icon:"⚔️",cap:"Palazzo Pubblico — gotische Backsteinarchitektur"},
+      {bg:"linear-gradient(135deg,#4a2808,#8a5020)",icon:"⚔️",cap:"Palazzo Pubblico — Hauptfassade"},
       {bg:"linear-gradient(135deg,#202820,#406040)",icon:"🗼",cap:"Torre del Mangia — 102 m über dem Campo"},
-      {bg:"linear-gradient(135deg,#381828,#704858)",icon:"🖼️",cap:"Lorenzetti: Allegorie der guten Regierung, 1338"}
+      {bg:"linear-gradient(135deg,#381828,#704858)",icon:"🖼️",cap:"Lorenzetti: Allegorie der guten Regierung"}
     ]
   },
   {
     num:"05", name:"Duomo di Siena", sub:"Marmor, Licht und Ambition",
     paras:[
-      `Der Dom ist ein Monument städtischen Ehrgeizes. Im 14. Jahrhundert plante Siena, das bestehende Schiff zur Querhalle eines gewaltigen Neubaus zu machen — größer als der Mailänder Dom.`,
-      `Die Pest von 1348 tötete die Hälfte der Bevölkerung und stoppte alles. Die leeren Arkaden des <em>Duomo Nuovo</em> zeugen bis heute von der unerfüllten Ambition. Die Fassade von Giovanni Pisano — weißer, grüner und roter Marmor — ist ein frühgotisches Meisterwerk.`
+      `Der Dom ist ein Monument städtischen Ehrgeizes. Im 14. Jahrhundert plante Siena einen Neubau, größer als der Mailänder Dom.`,
+      `Die Pest von 1348 stoppte alles. Die leeren Arkaden des <em>Duomo Nuovo</em> zeugen bis heute davon. Die Fassade von Giovanni Pisano ist ein frühgotisches Meisterwerk.`
     ],
     facts:[{l:"Baubeginn",v:"ca. 1215"},{l:"Fassade",v:"Giovanni Pisano"},{l:"Boden",v:"56 Intarsien-Tafeln"},{l:"Unvollendet",v:"Duomo Nuovo, 1339"}],
     slides:[
-      {bg:"linear-gradient(135deg,#181828,#384868)",icon:"⛪",cap:"Duomo di Siena — Fassade in Schwarz-Weiß-Grün-Marmor"},
-      {bg:"linear-gradient(135deg,#303818,#607038)",icon:"🌿",cap:"Duomo Nuovo — die unvollendeten Arkaden"},
-      {bg:"linear-gradient(135deg,#281820,#584040)",icon:"✨",cap:"Kuppelraum — Licht, Höhe, Raumsequenz"}
+      {bg:"linear-gradient(135deg,#181828,#384868)",icon:"⛪",cap:"Duomo di Siena — Fassade"},
+      {bg:"linear-gradient(135deg,#303818,#607038)",icon:"🌿",cap:"Duomo Nuovo — unvollendete Arkaden"},
+      {bg:"linear-gradient(135deg,#281820,#584040)",icon:"✨",cap:"Kuppelraum — Licht und Raumsequenz"}
     ]
   }
 ];
 
-/* Cumulative route paths */
+/* ═══════════════════════════════
+   ROUTE
+═══════════════════════════════ */
 const TRAIL = [
   "M148,92",
   "M148,92 Q205,118 262,158",
@@ -859,37 +635,6 @@ const TRAIL = [
   "M148,92 Q205,118 262,158 Q305,192 340,268 Q346,280 350,290 Q352,308 350,330 Q348,390 340,448"
 ];
 
-/* ViewBox per stop — centered on each waypoint */
-const VB = [
-  "48  0 240 272",    /* 0 Porta Camollia  — centered on 148,92  */
-  "112 42 290 330",   /* 1 Piazza Salimbeni */
-  "200 185 265 300",  /* 2 Il Campo        */
-  "205 208 260 296",  /* 3 Palazzo Pubblico */
-  "195 328 258 292"   /* 4 Duomo di Siena  */
-];
-const VB0 = "48 0 240 272"; /* start centered on stop 0 */
-
-/* ── ViewBox animation ── */
-function animVB(target) {
-  const svg = document.getElementById('mapSvg');
-  const p = target.split(' ').map(Number);
-  const vb = svg.viewBox.baseVal;
-  const from = [vb.x, vb.y, vb.width, vb.height];
-  const t0 = performance.now(), dur = 720;
-  (function tick(now) {
-    const t = Math.min((now - t0) / dur, 1);
-    const e = t < .5 ? 2*t*t : -1+(4-2*t)*t;
-    svg.setAttribute('viewBox', from.map((v,i) => v + (p[i]-v)*e).join(' '));
-    if (t < 1) requestAnimationFrame(tick);
-  })(t0);
-}
-
-/* ── Scroll engine ── */
-let activeStop = -1;
-
-function isMob() { return window.innerWidth <= 768; }
-
-/* Route waypoints — same coordinates as the TRAIL paths */
 const WAYPOINTS = [
   {x:148, y:92},
   {x:262, y:158},
@@ -898,187 +643,225 @@ const WAYPOINTS = [
   {x:340, y:448}
 ];
 
-/* Lerp between two waypoints */
-function lerpWP(a, b, t) {
-  return { x: a.x + (b.x - a.x)*t, y: a.y + (b.y - a.y)*t };
-}
+/* ViewBox per stop */
+const VB = [
+  "48  0  240 272",
+  "112 42 290 330",
+  "200 185 265 300",
+  "205 208 260 296",
+  "195 328 258 292"
+];
 
-/* Move the traveller dot — smoothly interpolates along the full route.
-   globalT = 0..4 (continuous progress across all 5 stops) */
-function moveTraveller(globalT) {
-  const trav = document.getElementById('traveller');
-  trav.style.opacity = '1';
-
-  const t = Math.max(0, Math.min(3.9999, globalT)); // cap before last point
-  const fromIdx = Math.floor(t);
-  const frac    = t - fromIdx;
-  const from    = WAYPOINTS[fromIdx];
-  const to      = WAYPOINTS[Math.min(fromIdx + 1, 4)];
-
-  // Ease the fraction so movement feels weighted near stops
-  const easedFrac = frac < 0.5
-    ? 2 * frac * frac
-    : -1 + (4 - 2*frac) * frac;
-
-  const pos = {
-    x: from.x + (to.x - from.x) * easedFrac,
-    y: from.y + (to.y - from.y) * easedFrac
-  };
-  trav.setAttribute('cx', pos.x);
-  trav.setAttribute('cy', pos.y);
-}
-
-/* ViewBox: lerp between two viewbox states */
-function lerpVB(a, b, t) {
-  const pa = a.split(' ').map(Number);
-  const pb = b.split(' ').map(Number);
+/* ═══════════════════════════════
+   HELPERS
+═══════════════════════════════ */
+function lerpVB(a, b, t){
+  const pa = a.trim().split(/\s+/).map(Number);
+  const pb = b.trim().split(/\s+/).map(Number);
   return pa.map((v,i) => v + (pb[i]-v)*t).join(' ');
 }
 
-function updateDrawer(idx) {
-  if (!isMob()) return;
-  const s = STOPS[idx];
-  document.getElementById('mob-num').textContent  = `Station 0${idx+1}`;
-  document.getElementById('mob-name').textContent = s.name;
-  document.getElementById('mob-sub').textContent  = s.sub;
-  document.getElementById('mob-drawer').classList.add('open');
+/* ═══════════════════════════════
+   STATE
+═══════════════════════════════ */
+let activeStop    = -1;
+let mapIntroShown = false;
+
+/* ═══════════════════════════════
+   MAP INTRO ANIMATION
+   Called once when map first appears.
+   Zooms out from Stop-0 zoom level to give a "reveal" feel,
+   then settles back to Stop-0 view.
+═══════════════════════════════ */
+function triggerMapIntro(){
+  if (mapIntroShown) return;
+  mapIntroShown = true;
+
+  const map = document.getElementById('map-panel');
+  const svg = document.getElementById('mapSvg');
+
+  /* Start from a tighter zoom (closer into stop 0) */
+  const zoomIn  = "88 30 150 170";   /* very close on Porta Camollia */
+  const target  = VB[0];             /* normal stop-0 view */
+
+  svg.setAttribute('viewBox', zoomIn);
+  map.classList.add('map-intro'); /* trigger CSS fade+scale transition */
+
+  /* After CSS transition settles (700ms), animate viewBox to normal */
+  setTimeout(() => {
+    animVB(zoomIn, target, 900);
+  }, 200);
 }
 
-function hideDrawer() {
-  document.getElementById('mob-drawer').classList.remove('open');
+/* Animate viewBox from → to over `dur` ms */
+function animVB(from, to, dur){
+  const svg = document.getElementById('mapSvg');
+  const t0  = performance.now();
+  (function tick(now){
+    const t = Math.min((now - t0) / dur, 1);
+    const e = t < .5 ? 2*t*t : -1+(4-2*t)*t; // ease-in-out quad
+    svg.setAttribute('viewBox', lerpVB(from, to, e));
+    if (t < 1) requestAnimationFrame(tick);
+  })(t0);
 }
 
-function activate(idx, globalT) {
-  /* Always update traveller smoothly with continuous globalT */
+/* Animate viewBox from current to target */
+function animVBfromCurrent(target, dur){
+  const svg = document.getElementById('mapSvg');
+  const vb  = svg.viewBox.baseVal;
+  const from = `${vb.x} ${vb.y} ${vb.width} ${vb.height}`;
+  animVB(from, target, dur || 650);
+}
+
+/* ═══════════════════════════════
+   TRAVELLER DOT
+═══════════════════════════════ */
+function moveTraveller(globalT){
+  const trav = document.getElementById('traveller');
+  trav.style.opacity = '1';
+
+  /* clamp to [0, 3.9999] so we always have a "next" point */
+  const t       = Math.max(0, Math.min(3.9999, globalT));
+  const fromIdx = Math.floor(t);
+  const frac    = t - fromIdx;
+  /* ease-in-out so dot decelerates near stops */
+  const ef      = frac < .5 ? 2*frac*frac : -1+(4-2*frac)*frac;
+  const a       = WAYPOINTS[fromIdx];
+  const b       = WAYPOINTS[fromIdx + 1];
+  trav.setAttribute('cx', a.x + (b.x - a.x) * ef);
+  trav.setAttribute('cy', a.y + (b.y - a.y) * ef);
+}
+
+/* ═══════════════════════════════
+   ACTIVATE STOP
+═══════════════════════════════ */
+function activate(idx, globalT){
+  /* Always move traveller */
   if (globalT !== undefined) moveTraveller(globalT);
-  else moveTraveller(idx); // desktop: snap to stop
 
-  /* Only do heavy updates when stop index changes */
-  if (idx !== activeStop) {
-    activeStop = idx;
+  /* Dot states */
+  for (let i = 0; i < 5; i++){
+    const d = document.getElementById('dot'+i);
+    d.classList.toggle('visited',    i < idx);
+    d.classList.toggle('active-dot', i === idx);
+    d.setAttribute('r', i === idx ? '9' : '7');
+  }
 
-    document.getElementById('routeTrail').setAttribute('d', TRAIL[idx]);
-
-    for (let i = 0; i < 5; i++) {
-      const d = document.getElementById('dot'+i);
-      d.classList.toggle('visited',    i < idx);
-      d.classList.toggle('active-dot', i === idx);
-      d.setAttribute('r', i === idx ? '9' : '7');
-
-      const r = document.getElementById('rp'+i);
-      r.style.animation = 'none'; r.style.opacity = '0';
-
-      if (!isMob()) {
-        document.getElementById('card'+i).classList.toggle('active', i === idx);
-      }
+  /* Heavy updates only on stop change */
+  if (idx === activeStop) {
+    /* ViewBox follows traveller continuously */
+    if (globalT !== undefined){
+      const frac = globalT - Math.floor(globalT);
+      const next = idx < 4 ? VB[idx+1] : VB[4];
+      document.getElementById('mapSvg')
+        .setAttribute('viewBox', lerpVB(VB[idx], next, Math.min(frac, 1)));
     }
-
-    const ar = document.getElementById('rp'+idx);
-    ar.style.opacity = '1';
-    void ar.offsetWidth;
-    ar.style.animation = 'ripple-anim 1.9s ease-out infinite';
-
-    document.getElementById('navCrumb').classList.add('show');
-    document.getElementById('crumbStop').textContent = STOPS[idx].name;
-
-    const ctr = document.getElementById('stop-counter');
-    ctr.textContent = `0${idx+1} / 05`;
-    ctr.classList.add('show');
-
-    updateDrawer(idx);
+    return;
   }
 
-  /* ViewBox */
-  if (!isMob() || globalT === undefined) {
-    animVB(VB[idx]);
-  } else {
-    const frac   = globalT - Math.floor(globalT);
-    const current = VB[idx];
-    const next    = idx < 4 ? VB[idx+1] : VB[4];
-    document.getElementById('mapSvg').setAttribute('viewBox', lerpVB(current, next, Math.min(frac, 1)));
+  activeStop = idx;
+
+  /* Trail */
+  document.getElementById('routeTrail').setAttribute('d', TRAIL[idx]);
+
+  /* Ripples */
+  for (let i = 0; i < 5; i++){
+    const r = document.getElementById('rp'+i);
+    r.style.animation = 'none'; r.style.opacity = '0';
   }
+  const ar = document.getElementById('rp'+idx);
+  ar.style.opacity = '1'; void ar.offsetWidth;
+  ar.style.animation = 'ripple-anim 1.9s ease-out infinite';
+
+  /* Crumb + counter */
+  const crumb = document.getElementById('nav-crumb');
+  crumb.classList.add('show');
+  document.getElementById('crumb-stop').textContent = STOPS[idx].name;
+  const ctr = document.getElementById('stop-counter');
+  ctr.textContent = `0${idx+1} / 05`;
+  ctr.classList.add('show');
+
+  /* Drawer */
+  document.getElementById('drawer-num').textContent  = `Station 0${idx+1}`;
+  document.getElementById('drawer-name').textContent = STOPS[idx].name;
+  document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
+  document.getElementById('drawer').classList.add('open');
+
+  /* ViewBox — animate from current to this stop's view */
+  animVBfromCurrent(VB[idx], 650);
 }
 
-function resetAll() {
-  if (activeStop === -1) return;
+function resetMap(){
   activeStop = -1;
   document.getElementById('routeTrail').setAttribute('d', '');
   document.getElementById('traveller').style.opacity = '0';
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 5; i++){
     document.getElementById('dot'+i).classList.remove('visited','active-dot');
     document.getElementById('dot'+i).setAttribute('r','7');
     const r = document.getElementById('rp'+i);
     r.style.animation = 'none'; r.style.opacity = '0';
-    document.getElementById('card'+i).classList.remove('active');
   }
-  document.getElementById('navCrumb').classList.remove('show');
+  document.getElementById('nav-crumb').classList.remove('show');
   document.getElementById('stop-counter').classList.remove('show');
-  hideDrawer();
-  animVB(VB0);
+  document.getElementById('drawer').classList.remove('open');
 }
 
-function onScroll() {
-  const sy = window.scrollY;
-  const dh = document.documentElement.scrollHeight - innerHeight;
+/* ═══════════════════════════════
+   SCROLL ENGINE
+═══════════════════════════════ */
+function onScroll(){
+  const sy       = window.scrollY;
+  const dh       = document.documentElement.scrollHeight - innerHeight;
+  const introH   = document.querySelector('.intro').offsetHeight;
+  const map      = document.getElementById('map-panel');
+
+  /* Progress bar */
   document.getElementById('progress-bar').style.width = (sy / dh * 100) + '%';
 
-  const introBottom = document.querySelector('.intro').offsetHeight;
-  const mapPanel    = document.getElementById('map-panel');
-
-  if (isMob()) {
-    if (sy > introBottom - 80) {
-      mapPanel.classList.remove('mob-hidden');
-      mapPanel.classList.add('visible');
-      document.body.classList.add('journey-active');
-    } else {
-      mapPanel.classList.add('mob-hidden');
-      mapPanel.classList.remove('visible');
-      document.body.classList.remove('journey-active');
-      hideDrawer();
-      resetAll();
-      return;
-    }
-
-    /* Compute continuous globalT across all 5 stops: 0..4.999 */
-    const journey    = document.getElementById('journey');
-    const journeyTop = journey.getBoundingClientRect().top + sy;
-    const scrollInJ  = sy - journeyTop;
-    const totalH     = 5 * window.innerHeight;
-    // clamp to [0, 4.999]
-    const globalT    = Math.max(0, Math.min(4.999, (scrollInJ / totalH) * 5));
-    const stopIdx    = Math.floor(globalT);
-
-    activate(stopIdx, globalT);
+  /* Map visibility */
+  if (sy < introH - 60){
+    /* Still in intro */
+    map.classList.remove('map-intro');
+    document.getElementById('map-panel').style.pointerEvents = 'none';
+    resetMap();
     return;
   }
 
-  /* Desktop */
-  if (sy > introBottom - 120) {
-    mapPanel.classList.add('visible');
-  } else {
-    mapPanel.classList.remove('visible');
-    resetAll();
-    return;
-  }
+  /* First time past intro → trigger map intro animation */
+  if (!mapIntroShown) triggerMapIntro();
+  else map.classList.add('map-intro'); // keep visible on subsequent scrolls back
 
-  let found = -1;
-  document.querySelectorAll('.stop-section').forEach((sec, i) => {
-    const r = sec.getBoundingClientRect();
-    if (r.top < innerHeight * .6 && r.bottom > innerHeight * .2) found = i;
-  });
+  /* Compute globalT from scroll position within #journey */
+  const journey    = document.getElementById('journey');
+  const journeyTop = journey.getBoundingClientRect().top + sy;
+  const scrollInJ  = sy - journeyTop;
+  const totalH     = 5 * innerHeight;
+  /* 0 = start of stop 0, 4.999 = end of stop 4 */
+  const globalT    = Math.max(0, Math.min(4.999, (scrollInJ / totalH) * 5));
+  const stopIdx    = Math.floor(globalT);
 
-  if (found >= 0) activate(found);
-  else activate(0);
+  activate(stopIdx, globalT);
 }
 
-window.addEventListener('scroll', onScroll, { passive: true });
+window.addEventListener('scroll', onScroll, { passive:true });
 onScroll();
 
-/* ── Modal ── */
+/* ═══════════════════════════════
+   SCROLL TO STOP
+═══════════════════════════════ */
+function scrollToStop(idx){
+  const journey    = document.getElementById('journey');
+  const journeyTop = journey.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top: journeyTop + idx * innerHeight, behavior:'smooth' });
+}
+
+/* ═══════════════════════════════
+   MODAL
+═══════════════════════════════ */
 let galIdx = 0, galLen = 0;
 
-function openModal(idx) {
-  const s = STOPS[idx >= 0 ? idx : activeStop];
+function openModal(idx){
+  const s = (idx >= 0 && idx < 5) ? STOPS[idx] : STOPS[activeStop];
   if (!s) return;
   galIdx = 0; galLen = s.slides.length;
 
@@ -1086,11 +869,11 @@ function openModal(idx) {
     <div class="gallery-slide">
       <div class="slide-bg" style="background:${sl.bg}"></div>
       <div class="slide-icon">${sl.icon}</div>
-      <div class="slide-caption">${sl.cap}</div>
+      <div class="slide-cap">${sl.cap}</div>
     </div>`).join('');
 
   document.getElementById('galNav').innerHTML = s.slides.map((_,i) =>
-    `<div class="gallery-pip${i===0?' on':''}" onclick="galTo(${i})"></div>`).join('');
+    `<div class="gal-pip${i===0?' on':''}" onclick="galTo(${i})"></div>`).join('');
 
   document.getElementById('modalBody').innerHTML = `
     <div class="modal-num">Station ${s.num} von 05</div>
@@ -1107,17 +890,17 @@ function openModal(idx) {
   galTo(0);
 }
 
-function closeModal() {
+function closeModal(){
   document.getElementById('modal').classList.remove('open');
   document.getElementById('backdrop').classList.remove('open');
 }
 
-function galTo(i) {
+function galTo(i){
   galIdx = ((i % galLen) + galLen) % galLen;
   document.getElementById('galSlides').style.transform = `translateX(-${galIdx*100}%)`;
-  document.querySelectorAll('.gallery-pip').forEach((p,j) => p.classList.toggle('on', j===galIdx));
+  document.querySelectorAll('.gal-pip').forEach((p,j) => p.classList.toggle('on', j===galIdx));
 }
-function galStep(d) { galTo(galIdx + d); }
+function galStep(d){ galTo(galIdx + d); }
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape')     closeModal();
