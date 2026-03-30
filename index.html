@@ -287,36 +287,38 @@ body {
     pointer-events: none !important;
   }
 
-  /* ── Journey: full scroll height, starts right after map ── */
+  /* ── Journey: invisible scroll space.
+     Starts immediately after intro — no gap.
+     The fixed map + fixed drawer together fill 55vh + drawerH. ── */
   #journey {
     height: calc(5 * 100vh) !important;
     position: relative !important;
     margin-top: 0 !important;
-    /* No gap — drawer fills the space below the map */
+    padding-top: 0 !important;
   }
 
-  /* Body gets padding-top = map height so journey starts at map bottom */
+  /* NO body padding-top — journey sits in normal flow after intro */
   body.journey-active {
-    padding-top: 55vh;
+    padding-top: 0 !important;
   }
 
   /* ── Scroll col: hidden on mobile ── */
   #scroll-col { display: none !important; }
 
-  /* ── Outro ── */
-  .outro { margin-top: 0; }
+  /* ── Outro: no extra margin ── */
+  .outro { margin-top: 0 !important; }
 
-  /* ── Bottom drawer: sits right at bottom of map ── */
+  /* ── Bottom drawer: flush below map, full-width ── */
   #mob-drawer {
     display: block;
     position: fixed;
-    /* sits flush below the map */
     top: 55vh; left: 0; right: 0;
     z-index: 60;
+    /* starts hidden above its position */
     transform: translateY(-100%);
     opacity: 0;
-    transition: transform .4s cubic-bezier(.77,0,.175,1), opacity .3s ease;
     pointer-events: none;
+    transition: transform .38s cubic-bezier(.77,0,.175,1), opacity .28s ease;
   }
   #mob-drawer.open {
     transform: translateY(0);
@@ -326,46 +328,54 @@ body {
 
   .mob-drawer-handle {
     background: var(--cream);
-    border-top: 2px solid var(--terra);
-    padding: .85rem 5vw .75rem;
+    border-top: 2.5px solid var(--terra);
+    /* generous tap area */
+    padding: 1rem 5vw 1rem;
     display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 -4px 20px rgba(26,18,9,.08);
+    box-shadow: 0 -6px 24px rgba(26,18,9,.1);
   }
   .mob-drawer-handle-left {
-    display: flex; flex-direction: column; gap: .12rem;
+    display: flex; flex-direction: column; gap: .18rem;
+    flex: 1; min-width: 0;
   }
   .mob-handle-num {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: .72rem; letter-spacing: .2em;
+    font-size: .72rem; letter-spacing: .22em;
     color: var(--terra); line-height: 1;
   }
   .mob-handle-name {
     font-family: 'Cormorant Garamond', serif;
-    font-weight: 600; font-size: 1.2rem; line-height: 1.1;
+    font-weight: 600; font-size: 1.3rem; line-height: 1.1;
     color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .mob-handle-sub {
     font-family: 'Cormorant Garamond', serif;
-    font-style: italic; font-size: .78rem;
+    font-style: italic; font-size: .8rem;
     color: var(--muted);
   }
   .mob-drawer-arrow {
     font-family: 'Jost', sans-serif;
     font-size: .62rem; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--terra);
-    border: 1px solid var(--terra);
-    padding: .42rem .85rem;
+    color: var(--cream);
+    background: var(--terra);
+    border: none;
+    padding: .6rem 1rem;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
-  /* ── Intro ── */
+  /* ── Intro above map ── */
   .intro { z-index: 20; }
   .intro h1 { font-size: clamp(4rem, 18vw, 7rem); }
   .intro-sub { font-size: .95rem; }
   .scroll-cue { right: 5vw; }
+
+  /* ── Nav crumb: Siena one color ── */
+  .crumb-city { color: var(--cream) !important; font-style: normal !important; }
 
   /* ── Outro ── */
   .outro { padding: 10vh 7vw; }
@@ -375,11 +385,17 @@ body {
   .modal { width: 100vw !important; }
 
   /* ── Nav crumb ── */
-  .crumb-city { font-size: .85rem; }
   .crumb-stop { font-size: .58rem; }
 
-  /* ── Stop counter above drawer ── */
-  #stop-counter { bottom: 5.5rem; left: 1rem; font-size: .85rem; }
+  /* ── Stop counter: inside map, bottom-left ── */
+  #stop-counter {
+    bottom: calc(45vh + 0.5rem) !important;
+    left: 1rem !important;
+    font-size: .85rem !important;
+  }
+
+  /* ── Hide progress bar on mobile (covered by nav) ── */
+  #progress-bar { height: 2px; }
 }
 
 /* ─────────────────────────────────────────
@@ -497,7 +513,7 @@ body {
       <path class="segment" d="M300 320 Q400 278 512 206" />
       <path class="segment" d="M300 320 Q416 286 542 236" />
     </svg>
-    <h1 class="loader-title">Sie<em>na</em></h1>
+    <h1 class="loader-title">Siena</h1>
   </div>
 </div>
 
@@ -887,18 +903,27 @@ function lerpWP(a, b, t) {
   return { x: a.x + (b.x - a.x)*t, y: a.y + (b.y - a.y)*t };
 }
 
-/* Move the traveller dot to an interpolated position between stops */
-function moveTraveller(stopIdx, frac) {
+/* Move the traveller dot — smoothly interpolates along the full route.
+   globalT = 0..4 (continuous progress across all 5 stops) */
+function moveTraveller(globalT) {
   const trav = document.getElementById('traveller');
   trav.style.opacity = '1';
-  let pos;
-  if (frac <= 0 || stopIdx === 0) {
-    pos = WAYPOINTS[stopIdx];
-  } else {
-    const from = WAYPOINTS[stopIdx];
-    const to   = stopIdx < 4 ? WAYPOINTS[stopIdx + 1] : WAYPOINTS[4];
-    pos = lerpWP(from, to, Math.min(frac, 1));
-  }
+
+  const t = Math.max(0, Math.min(3.9999, globalT)); // cap before last point
+  const fromIdx = Math.floor(t);
+  const frac    = t - fromIdx;
+  const from    = WAYPOINTS[fromIdx];
+  const to      = WAYPOINTS[Math.min(fromIdx + 1, 4)];
+
+  // Ease the fraction so movement feels weighted near stops
+  const easedFrac = frac < 0.5
+    ? 2 * frac * frac
+    : -1 + (4 - 2*frac) * frac;
+
+  const pos = {
+    x: from.x + (to.x - from.x) * easedFrac,
+    y: from.y + (to.y - from.y) * easedFrac
+  };
   trav.setAttribute('cx', pos.x);
   trav.setAttribute('cy', pos.y);
 }
@@ -923,9 +948,10 @@ function hideDrawer() {
   document.getElementById('mob-drawer').classList.remove('open');
 }
 
-function activate(idx, frac) {
-  /* Always update traveller smoothly */
-  moveTraveller(idx, frac || 0);
+function activate(idx, globalT) {
+  /* Always update traveller smoothly with continuous globalT */
+  if (globalT !== undefined) moveTraveller(globalT);
+  else moveTraveller(idx); // desktop: snap to stop
 
   /* Only do heavy updates when stop index changes */
   if (idx !== activeStop) {
@@ -962,15 +988,14 @@ function activate(idx, frac) {
     updateDrawer(idx);
   }
 
-  /* ViewBox: interpolate toward next stop while scrolling between stops */
-  if (!isMob() || frac === undefined) {
+  /* ViewBox */
+  if (!isMob() || globalT === undefined) {
     animVB(VB[idx]);
   } else {
-    /* On mobile: set viewBox directly to follow traveller without animation lag */
+    const frac   = globalT - Math.floor(globalT);
     const current = VB[idx];
     const next    = idx < 4 ? VB[idx+1] : VB[4];
-    const svg = document.getElementById('mapSvg');
-    svg.setAttribute('viewBox', lerpVB(current, next, Math.min(frac, 1)));
+    document.getElementById('mapSvg').setAttribute('viewBox', lerpVB(current, next, Math.min(frac, 1)));
   }
 }
 
@@ -1014,17 +1039,16 @@ function onScroll() {
       return;
     }
 
-    /* Compute exact progress through the 5-stop journey */
-    const journey   = document.getElementById('journey');
+    /* Compute continuous globalT across all 5 stops: 0..4.999 */
+    const journey    = document.getElementById('journey');
     const journeyTop = journey.getBoundingClientRect().top + sy;
     const scrollInJ  = sy - journeyTop;
     const totalH     = 5 * window.innerHeight;
-    const rawProgress = scrollInJ / totalH * 5; // 0..5
-    const clampedP    = Math.max(0, Math.min(4.999, rawProgress));
-    const stopIdx     = Math.floor(clampedP);
-    const frac        = clampedP - stopIdx; // 0..1 within this stop
+    // clamp to [0, 4.999]
+    const globalT    = Math.max(0, Math.min(4.999, (scrollInJ / totalH) * 5));
+    const stopIdx    = Math.floor(globalT);
 
-    activate(stopIdx, frac);
+    activate(stopIdx, globalT);
     return;
   }
 
