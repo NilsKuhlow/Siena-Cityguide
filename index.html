@@ -347,8 +347,72 @@ body {
 .gal-arr.prev{ left:.6rem; }
 .gal-arr.next{ right:.6rem; }
 
-/* Modal body */
-.modal-body  { padding:1.6rem 1.4rem 3rem; }
+/* ═══════════════════════════════════════════
+   SKETCH PANEL — fills space below drawer
+   Fixed, below drawer, above outro
+═══════════════════════════════════════════ */
+#sketch-panel {
+  position: fixed;
+  top: calc(var(--map-h) + var(--drawer-h));
+  left: 0; right: 0;
+  /* fills remaining viewport below map+drawer */
+  height: calc(100vh - var(--map-h) - var(--drawer-h));
+  background: var(--cream);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* hidden until drawer opens */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .5s ease;
+}
+#sketch-panel.open {
+  opacity: 1;
+}
+
+.sketch-svg {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  padding: 1rem 8vw 1.5rem;
+  display: none; /* JS shows the right one */
+}
+.sketch-svg.active { display: block; }
+
+/* All sketch strokes share this style — hand-drawn feel */
+.sk {
+  fill: none;
+  stroke: var(--terra);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  animation: sketchIn .6s ease forwards;
+}
+.sk-fill {
+  fill: rgba(196,98,45,.06);
+  stroke: none;
+  opacity: 0;
+  animation: sketchFill .4s ease .5s forwards;
+}
+.sk-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 10px;
+  fill: var(--muted);
+  opacity: 0;
+  animation: sketchFill .4s ease .7s forwards;
+}
+@keyframes sketchIn {
+  0%   { opacity:0; stroke-dashoffset: var(--dash, 400); }
+  100% { opacity:.8; stroke-dashoffset: 0; }
+}
+@keyframes sketchFill {
+  to { opacity:1; }
+}
+
 .modal-num   { font-family:'Bebas Neue',sans-serif; font-size:.82rem; letter-spacing:.22em; color:var(--terra); margin-bottom:.35rem; }
 .modal-title { font-family:'Cormorant Garamond',serif; font-weight:600; font-size:1.9rem; line-height:1.05; color:var(--ink); }
 .modal-sub   { font-family:'Cormorant Garamond',serif; font-style:italic; font-size:.9rem; color:var(--muted); display:block; margin-top:.2rem; }
@@ -518,8 +582,221 @@ body {
   </div>
 </div>
 
-<!-- OUTRO -->
-<div class="outro">
+<!-- SKETCH PANEL (fixed, below drawer) -->
+<div id="sketch-panel">
+
+  <!-- Stop 0: Porta Camollia — city gate arch with inscription band -->
+  <svg class="sketch-svg" id="sk0" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid meet">
+    <!-- ground -->
+    <line class="sk" x1="20" y1="155" x2="300" y2="155" stroke-width="1" style="--dash:280; stroke-dasharray:280; animation-delay:.0s"/>
+    <!-- left pier -->
+    <rect class="sk-fill" x="72" y="60" width="36" height="95"/>
+    <line class="sk" x1="72" y1="155" x2="72" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.05s"/>
+    <line class="sk" x1="108" y1="155" x2="108" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.1s"/>
+    <!-- right pier -->
+    <rect class="sk-fill" x="212" y="60" width="36" height="95"/>
+    <line class="sk" x1="212" y1="155" x2="212" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.15s"/>
+    <line class="sk" x1="248" y1="155" x2="248" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.2s"/>
+    <!-- arch -->
+    <path class="sk" d="M108,60 Q108,18 160,18 Q212,18 212,60" stroke-width="2" style="--dash:220; stroke-dasharray:220; animation-delay:.25s"/>
+    <!-- inner arch shadow -->
+    <path class="sk" d="M116,60 Q116,26 160,26 Q204,26 204,60" stroke-width="1" style="--dash:200; stroke-dasharray:200; animation-delay:.35s"/>
+    <!-- inscription band -->
+    <rect class="sk-fill" x="72" y="52" width="176" height="14"/>
+    <line class="sk" x1="72" y1="52" x2="248" y2="52" stroke-width="1" style="--dash:176; stroke-dasharray:176; animation-delay:.4s"/>
+    <line class="sk" x1="72" y1="66" x2="248" y2="66" stroke-width="1" style="--dash:176; stroke-dasharray:176; animation-delay:.45s"/>
+    <!-- keystone detail -->
+    <polygon class="sk" points="152,18 168,18 165,28 155,28" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.5s"/>
+    <!-- shadow lines on piers -->
+    <line class="sk" x1="84" y1="70" x2="84" y2="150" stroke-width=".6" style="--dash:80; stroke-dasharray:80; animation-delay:.55s"/>
+    <line class="sk" x1="92" y1="70" x2="92" y2="150" stroke-width=".6" style="--dash:80; stroke-dasharray:80; animation-delay:.58s"/>
+    <line class="sk" x1="224" y1="70" x2="224" y2="150" stroke-width=".6" style="--dash:80; stroke-dasharray:80; animation-delay:.61s"/>
+    <!-- label -->
+    <text class="sk-label" x="160" y="173" text-anchor="middle">Porta Camollia · 1604</text>
+  </svg>
+
+  <!-- Stop 1: Piazza Salimbeni — three palace façades + open square -->
+  <svg class="sketch-svg" id="sk1" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid meet">
+    <!-- ground plane -->
+    <line class="sk" x1="20" y1="150" x2="300" y2="150" stroke-width="1" style="--dash:280; stroke-dasharray:280; animation-delay:.0s"/>
+    <!-- perspective lines to piazza depth -->
+    <line class="sk" x1="20" y1="150" x2="100" y2="108" stroke-width=".6" style="--dash:100; stroke-dasharray:100; animation-delay:.05s"/>
+    <line class="sk" x1="300" y1="150" x2="220" y2="108" stroke-width=".6" style="--dash:100; stroke-dasharray:100; animation-delay:.08s"/>
+
+    <!-- Left palace (Gothic — Salimbeni) -->
+    <rect class="sk-fill" x="18" y="72" width="88" height="78"/>
+    <rect class="sk" x="18" y="72" width="88" height="78" stroke-width="1.6" style="--dash:332; stroke-dasharray:332; animation-delay:.1s"/>
+    <!-- Gothic windows left -->
+    <path class="sk" d="M34,108 Q34,96 42,96 Q50,96 50,108" stroke-width="1" style="--dash:50; stroke-dasharray:50; animation-delay:.2s"/>
+    <path class="sk" d="M58,108 Q58,96 66,96 Q74,96 74,108" stroke-width="1" style="--dash:50; stroke-dasharray:50; animation-delay:.22s"/>
+    <path class="sk" d="M82,108 Q82,96 90,96 Q98,96 98,108" stroke-width="1" style="--dash:50; stroke-dasharray:50; animation-delay:.24s"/>
+    <!-- battlements left palace -->
+    <polyline class="sk" points="18,72 18,66 26,66 26,60 34,60 34,66 42,66 42,60 50,60 50,66 58,66 58,60 66,60 66,66 74,66 74,60 82,60 82,66 90,66 90,60 98,60 98,66 106,66 106,72" stroke-width="1.2" style="--dash:160; stroke-dasharray:160; animation-delay:.28s"/>
+
+    <!-- Centre palace (Renaissance — Spannocchi) -->
+    <rect class="sk-fill" x="116" y="56" width="88" height="94"/>
+    <rect class="sk" x="116" y="56" width="88" height="94" stroke-width="1.8" style="--dash:364; stroke-dasharray:364; animation-delay:.12s"/>
+    <!-- Renaissance windows centre -->
+    <rect class="sk" x="128" y="80" width="16" height="20" rx="1" stroke-width="1" style="--dash:72; stroke-dasharray:72; animation-delay:.3s"/>
+    <line class="sk" x1="136" y1="80" x2="136" y2="100" stroke-width=".6" style="--dash:20; stroke-dasharray:20; animation-delay:.32s"/>
+    <rect class="sk" x="152" y="80" width="16" height="20" rx="1" stroke-width="1" style="--dash:72; stroke-dasharray:72; animation-delay:.34s"/>
+    <line class="sk" x1="160" y1="80" x2="160" y2="100" stroke-width=".6" style="--dash:20; stroke-dasharray:20; animation-delay:.36s"/>
+    <rect class="sk" x="176" y="80" width="16" height="20" rx="1" stroke-width="1" style="--dash:72; stroke-dasharray:72; animation-delay:.38s"/>
+    <!-- cornice line -->
+    <line class="sk" x1="116" y1="72" x2="204" y2="72" stroke-width="1" style="--dash:88; stroke-dasharray:88; animation-delay:.42s"/>
+
+    <!-- Right palace (Baroque — Tantucci) -->
+    <rect class="sk-fill" x="214" y="78" width="88" height="72"/>
+    <rect class="sk" x="214" y="78" width="88" height="72" stroke-width="1.6" style="--dash:320; stroke-dasharray:320; animation-delay:.14s"/>
+    <!-- Baroque windows right -->
+    <path class="sk" d="M228,112 Q228,100 236,100 Q244,100 244,112 L244,120 L228,120 Z" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.44s"/>
+    <path class="sk" d="M256,112 Q256,100 264,100 Q272,100 272,112 L272,120 L256,120 Z" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.46s"/>
+    <path class="sk" d="M284,112 Q284,100 292,100 Q300,100 300,112 L300,120 L284,120 Z" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.48s"/>
+    <!-- pediment right -->
+    <polyline class="sk" points="214,78 258,58 302,78" stroke-width="1" style="--dash:100; stroke-dasharray:100; animation-delay:.52s"/>
+
+    <!-- piazza floor hatching -->
+    <line class="sk" x1="90" y1="135" x2="105" y2="150" stroke-width=".5" style="--dash:25; stroke-dasharray:25; animation-delay:.6s"/>
+    <line class="sk" x1="110" y1="130" x2="125" y2="150" stroke-width=".5" style="--dash:28; stroke-dasharray:28; animation-delay:.62s"/>
+    <line class="sk" x1="190" y1="130" x2="205" y2="150" stroke-width=".5" style="--dash:28; stroke-dasharray:28; animation-delay:.64s"/>
+    <line class="sk" x1="210" y1="135" x2="225" y2="150" stroke-width=".5" style="--dash:25; stroke-dasharray:25; animation-delay:.66s"/>
+
+    <text class="sk-label" x="160" y="173" text-anchor="middle">Piazza Salimbeni · tre epoche</text>
+  </svg>
+
+  <!-- Stop 2: Piazza del Campo — the shell plan + Torre del Mangia -->
+  <svg class="sketch-svg" id="sk2" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet">
+    <!-- Campo shell outline — plan view -->
+    <ellipse class="sk-fill" cx="148" cy="115" rx="108" ry="72"/>
+    <path class="sk" d="M60,90 Q60,50 148,43 Q236,50 236,90 L240,148 Q200,175 148,178 Q96,175 56,148 Z"
+      stroke-width="2" style="--dash:620; stroke-dasharray:620; animation-delay:.0s"/>
+    <!-- 9 radial segments from bottom-center (Palazzo Pubblico edge) -->
+    <g style="--dash:120; stroke-dasharray:120;">
+      <line class="sk" x1="148" y1="175" x2="60"  y2="90"  stroke-width=".9" style="animation-delay:.15s"/>
+      <line class="sk" x1="148" y1="175" x2="80"  y2="55"  stroke-width=".9" style="animation-delay:.18s"/>
+      <line class="sk" x1="148" y1="175" x2="115" y2="44"  stroke-width=".9" style="animation-delay:.21s"/>
+      <line class="sk" x1="148" y1="175" x2="148" y2="43"  stroke-width=".9" style="animation-delay:.24s"/>
+      <line class="sk" x1="148" y1="175" x2="181" y2="44"  stroke-width=".9" style="animation-delay:.27s"/>
+      <line class="sk" x1="148" y1="175" x2="216" y2="55"  stroke-width=".9" style="animation-delay:.30s"/>
+      <line class="sk" x1="148" y1="175" x2="236" y2="90"  stroke-width=".9" style="animation-delay:.33s"/>
+      <line class="sk" x1="148" y1="175" x2="225" y2="140" stroke-width=".9" style="animation-delay:.36s"/>
+      <line class="sk" x1="148" y1="175" x2="71"  y2="140" stroke-width=".9" style="animation-delay:.39s"/>
+    </g>
+    <!-- Palazzo Pubblico bottom edge of campo -->
+    <rect class="sk-fill" x="108" y="170" width="80" height="18"/>
+    <rect class="sk" x="108" y="168" width="80" height="20" stroke-width="1.6" style="--dash:200; stroke-dasharray:200; animation-delay:.45s"/>
+    <!-- Torre del Mangia — tall slim tower -->
+    <rect class="sk-fill" x="256" y="18" width="16" height="160"/>
+    <rect class="sk" x="256" y="18" width="16" height="160" stroke-width="1.8" style="--dash:352; stroke-dasharray:352; animation-delay:.5s"/>
+    <!-- tower top -->
+    <polygon class="sk" points="252,18 272,18 268,8 256,8" stroke-width="1.2" style="--dash:60; stroke-dasharray:60; animation-delay:.6s"/>
+    <!-- bell openings on tower -->
+    <rect class="sk" x="258" y="30" width="12" height="16" stroke-width=".8" style="--dash:56; stroke-dasharray:56; animation-delay:.65s"/>
+    <rect class="sk" x="258" y="55" width="12" height="16" stroke-width=".8" style="--dash:56; stroke-dasharray:56; animation-delay:.68s"/>
+    <!-- ground -->
+    <line class="sk" x1="20" y1="180" x2="250" y2="180" stroke-width=".8" style="--dash:230; stroke-dasharray:230; animation-delay:.7s"/>
+    <!-- label -->
+    <text class="sk-label" x="148" y="197" text-anchor="middle">Il Campo · 9 Segmente · Plan</text>
+  </svg>
+
+  <!-- Stop 3: Palazzo Pubblico — elevation with Torre del Mangia -->
+  <svg class="sketch-svg" id="sk3" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet">
+    <!-- ground -->
+    <line class="sk" x1="10" y1="175" x2="310" y2="175" stroke-width="1" style="--dash:300; stroke-dasharray:300; animation-delay:.0s"/>
+    <!-- main palazzo body -->
+    <rect class="sk-fill" x="40" y="100" width="200" height="75"/>
+    <rect class="sk" x="40" y="100" width="200" height="75" stroke-width="2" style="--dash:550; stroke-dasharray:550; animation-delay:.05s"/>
+    <!-- Gothic bifore windows — 5 across -->
+    <g style="stroke-width:1; --dash:60; stroke-dasharray:60;">
+      <path class="sk" d="M58,135 Q58,122 66,122 Q74,122 74,135"  style="animation-delay:.15s"/>
+      <path class="sk" d="M94,135 Q94,122 102,122 Q110,122 110,135" style="animation-delay:.18s"/>
+      <path class="sk" d="M130,135 Q130,122 138,122 Q146,122 146,135" style="animation-delay:.21s"/>
+      <path class="sk" d="M166,135 Q166,122 174,122 Q182,122 182,135" style="animation-delay:.24s"/>
+      <path class="sk" d="M202,135 Q202,122 210,122 Q218,122 218,135" style="animation-delay:.27s"/>
+    </g>
+    <!-- cornice / battlements -->
+    <polyline class="sk" points="40,100 40,92 52,92 52,84 62,84 62,92 72,92 72,84 82,84 82,92 92,92 92,84 102,84 102,92 112,92 112,84 122,84 122,92 132,92 132,84 142,84 142,92 152,92 152,84 162,84 162,92 172,92 172,84 182,84 182,92 192,92 192,84 202,84 202,92 212,92 212,84 222,84 222,92 232,92 232,84 240,84 240,100"
+      stroke-width="1.2" style="--dash:300; stroke-dasharray:300; animation-delay:.3s"/>
+    <!-- left tower wing -->
+    <rect class="sk-fill" x="14" y="115" width="28" height="60"/>
+    <rect class="sk" x="14" y="115" width="28" height="60" stroke-width="1.4" style="--dash:176; stroke-dasharray:176; animation-delay:.08s"/>
+    <!-- right tower wing -->
+    <rect class="sk-fill" x="238" y="115" width="28" height="60"/>
+    <rect class="sk" x="238" y="115" width="28" height="60" stroke-width="1.4" style="--dash:176; stroke-dasharray:176; animation-delay:.1s"/>
+    <!-- Torre del Mangia — very tall -->
+    <rect class="sk-fill" x="270" y="10" width="22" height="165"/>
+    <rect class="sk" x="270" y="10" width="22" height="165" stroke-width="2" style="--dash:374; stroke-dasharray:374; animation-delay:.12s"/>
+    <!-- tower top cap -->
+    <polygon class="sk" points="265,10 297,10 292,2 275,2" stroke-width="1.4" style="--dash:70; stroke-dasharray:70; animation-delay:.55s"/>
+    <!-- tower windows -->
+    <rect class="sk" x="274" y="25" width="14" height="18" stroke-width=".8" style="--dash:64; stroke-dasharray:64; animation-delay:.58s"/>
+    <rect class="sk" x="274" y="55" width="14" height="18" stroke-width=".8" style="--dash:64; stroke-dasharray:64; animation-delay:.61s"/>
+    <rect class="sk" x="274" y="85" width="14" height="18" stroke-width=".8" style="--dash:64; stroke-dasharray:64; animation-delay:.64s"/>
+    <!-- dimension arrow for 102m -->
+    <line class="sk" x1="300" y1="10" x2="300" y2="175" stroke-width=".6" style="--dash:165; stroke-dasharray:165; animation-delay:.7s"/>
+    <line class="sk" x1="296" y1="14" x2="300" y2="10" stroke-width=".6" style="--dash:10; stroke-dasharray:10; animation-delay:.72s"/>
+    <line class="sk" x1="304" y1="14" x2="300" y2="10" stroke-width=".6" style="--dash:10; stroke-dasharray:10; animation-delay:.72s"/>
+    <text class="sk-label" x="310" y="95" text-anchor="middle" style="font-size:8px;">102m</text>
+    <!-- entrance arch -->
+    <path class="sk" d="M126,175 Q126,155 140,155 Q154,155 154,175" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.5s"/>
+    <text class="sk-label" x="148" y="195" text-anchor="middle">Palazzo Pubblico · 1297–1310</text>
+  </svg>
+
+  <!-- Stop 4: Duomo di Siena — west facade -->
+  <svg class="sketch-svg" id="sk4" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet">
+    <!-- ground -->
+    <line class="sk" x1="10" y1="180" x2="310" y2="180" stroke-width="1" style="--dash:300; stroke-dasharray:300; animation-delay:.0s"/>
+    <!-- steps -->
+    <line class="sk" x1="55" y1="180" x2="265" y2="180" stroke-width="1.5" style="--dash:210; stroke-dasharray:210; animation-delay:.02s"/>
+    <line class="sk" x1="62" y1="175" x2="258" y2="175" stroke-width="1" style="--dash:196; stroke-dasharray:196; animation-delay:.04s"/>
+    <line class="sk" x1="69" y1="170" x2="251" y2="170" stroke-width="1" style="--dash:182; stroke-dasharray:182; animation-delay:.06s"/>
+    <!-- nave body -->
+    <rect class="sk-fill" x="69" y="90" width="182" height="80"/>
+    <rect class="sk" x="69" y="90" width="182" height="80" stroke-width="2" style="--dash:524; stroke-dasharray:524; animation-delay:.08s"/>
+    <!-- horizontal marble stripes -->
+    <line class="sk" x1="69" y1="100" x2="251" y2="100" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.2s"/>
+    <line class="sk" x1="69" y1="110" x2="251" y2="110" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.22s"/>
+    <line class="sk" x1="69" y1="120" x2="251" y2="120" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.24s"/>
+    <line class="sk" x1="69" y1="130" x2="251" y2="130" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.26s"/>
+    <line class="sk" x1="69" y1="140" x2="251" y2="140" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.28s"/>
+    <line class="sk" x1="69" y1="150" x2="251" y2="150" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.30s"/>
+    <line class="sk" x1="69" y1="160" x2="251" y2="160" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.32s"/>
+    <!-- central gable -->
+    <polygon class="sk-fill" x1="60" y1="10" points="160,14 90,90 230,90"/>
+    <polyline class="sk" points="160,14 90,90" stroke-width="2" style="--dash:108; stroke-dasharray:108; animation-delay:.1s"/>
+    <polyline class="sk" points="160,14 230,90" stroke-width="2" style="--dash:108; stroke-dasharray:108; animation-delay:.12s"/>
+    <!-- left aisle gable -->
+    <polyline class="sk" points="118,54 69,90" stroke-width="1.4" style="--dash:70; stroke-dasharray:70; animation-delay:.14s"/>
+    <polyline class="sk" points="118,54 90,90" stroke-width="1.4" style="--dash:50; stroke-dasharray:50; animation-delay:.16s"/>
+    <!-- right aisle gable -->
+    <polyline class="sk" points="202,54 251,90" stroke-width="1.4" style="--dash:70; stroke-dasharray:70; animation-delay:.18s"/>
+    <polyline class="sk" points="202,54 230,90" stroke-width="1.4" style="--dash:50; stroke-dasharray:50; animation-delay:.20s"/>
+    <!-- rose window -->
+    <circle class="sk" cx="160" cy="58" r="18" stroke-width="1.2" style="--dash:113; stroke-dasharray:113; animation-delay:.35s"/>
+    <circle class="sk" cx="160" cy="58" r="10" stroke-width=".8" style="--dash:63; stroke-dasharray:63; animation-delay:.38s"/>
+    <line class="sk" x1="160" y1="40" x2="160" y2="76" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.4s"/>
+    <line class="sk" x1="142" y1="58" x2="178" y2="58" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.42s"/>
+    <line class="sk" x1="147" y1="45" x2="173" y2="71" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.44s"/>
+    <line class="sk" x1="173" y1="45" x2="147" y2="71" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.46s"/>
+    <!-- 3 portals -->
+    <path class="sk" d="M108,170 Q108,145 120,145 Q132,145 132,170" stroke-width="1.2" style="--dash:70; stroke-dasharray:70; animation-delay:.5s"/>
+    <path class="sk" d="M148,170 Q148,138 160,138 Q172,138 172,170" stroke-width="1.4" style="--dash:80; stroke-dasharray:80; animation-delay:.52s"/>
+    <path class="sk" d="M188,170 Q188,145 200,145 Q212,145 212,170" stroke-width="1.2" style="--dash:70; stroke-dasharray:70; animation-delay:.54s"/>
+    <!-- campanile right -->
+    <rect class="sk-fill" x="252" y="30" width="20" height="140"/>
+    <rect class="sk" x="252" y="30" width="20" height="140" stroke-width="1.6" style="--dash:320; stroke-dasharray:320; animation-delay:.6s"/>
+    <rect class="sk" x="254" y="45" width="16" height="18" stroke-width=".8" style="--dash:68; stroke-dasharray:68; animation-delay:.65s"/>
+    <rect class="sk" x="254" y="75" width="16" height="18" stroke-width=".8" style="--dash:68; stroke-dasharray:68; animation-delay:.68s"/>
+    <!-- Duomo Nuovo ghost fragment — unfinished wall right -->
+    <line class="sk" x1="275" y1="170" x2="310" y2="170" stroke-width=".6" style="stroke-dasharray:6 4; animation-delay:.75s; opacity:.4"/>
+    <line class="sk" x1="310" y1="170" x2="310" y2="60"  stroke-width=".6" style="stroke-dasharray:6 4; animation-delay:.78s; opacity:.4"/>
+    <text class="sk-label" x="316" y="115" style="font-size:7.5px; fill:var(--muted); opacity:.6">Nuovo</text>
+    <text class="sk-label" x="160" y="197" text-anchor="middle">Duomo di Siena · ca. 1215</text>
+  </svg>
+
+</div>
+
+
   <h2>La città è un libro.<br>Leggerla è già viaggiare.</h2>
   <p>Siena ist mehr als eine Ansammlung von Bauwerken — sie ist ein kohärentes räumliches Narrativ, das man liest, indem man sie geht.</p>
   <div class="outro-dot"></div>
@@ -787,6 +1064,19 @@ function activate(idx, globalT){
   document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
   document.getElementById('drawer').classList.add('open');
 
+  /* Sketch panel */
+  const panel = document.getElementById('sketch-panel');
+  panel.classList.add('open');
+  // Hide all sketches, then show + re-animate the active one
+  document.querySelectorAll('.sketch-svg').forEach(s => s.classList.remove('active'));
+  const sk = document.getElementById('sk' + idx);
+  if (sk) {
+    // Re-trigger CSS animations by cloning
+    const fresh = sk.cloneNode(true);
+    sk.parentNode.replaceChild(fresh, sk);
+    fresh.classList.add('active');
+  }
+
   /* ViewBox — animate from current to this stop's view */
   animVBfromCurrent(VB[idx], 650);
 }
@@ -804,6 +1094,8 @@ function resetMap(){
   document.getElementById('nav-crumb').classList.remove('show');
   document.getElementById('stop-counter').classList.remove('show');
   document.getElementById('drawer').classList.remove('open');
+  document.getElementById('sketch-panel').classList.remove('open');
+  document.querySelectorAll('.sketch-svg').forEach(s => s.classList.remove('active'));
 }
 
 /* ═══════════════════════════════
