@@ -3,16 +3,83 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Siena — Stadtführer</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231A1209'/%3E%3Cg stroke='%23C4622D' stroke-width='2.5' stroke-linecap='round' fill='none'%3E%3Cpath d='M50 85 Q34 79 14 64'/%3E%3Cpath d='M50 85 Q30 74 16 55'/%3E%3Cpath d='M50 85 Q32 68 22 46'/%3E%3Cpath d='M50 85 Q38 62 34 38'/%3E%3Cpath d='M50 85 Q46 60 44 34'/%3E%3Cpath d='M50 85 Q54 60 56 34'/%3E%3Cpath d='M50 85 Q62 62 66 38'/%3E%3Cpath d='M50 85 Q68 68 78 46'/%3E%3Cpath d='M50 85 Q70 74 84 55'/%3E%3Cpath d='M50 85 Q66 79 86 64'/%3E%3C/g%3E%3C/svg%3E">
+<title>Siena — Una Passeggiata</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Bebas+Neue&family=Jost:wght@300;400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Bebas+Neue&family=Jost:wght@300;400;500&display=swap"></noscript>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ── Smart-Track Button ── */
+#track-btn {
+  position:fixed; top:.75rem; right:1rem; z-index:150;
+  display:flex; align-items:center; gap:.45rem;
+  padding:.45rem .85rem .45rem .65rem;
+  border:1.5px solid rgba(196,98,45,.4);
+  background:rgba(245,239,224,.92);
+  backdrop-filter:blur(6px);
+  border-radius:2rem;
+  cursor:pointer;
+  font-family:'Jost',sans-serif;
+  font-size:.6rem; letter-spacing:.14em; text-transform:uppercase;
+  color:#4a3a2a;
+  opacity:0; pointer-events:none;
+  transition:opacity .4s, background .25s, border-color .25s, color .25s;
+  -webkit-tap-highlight-color:transparent;
+}
+#track-btn.show { opacity:1; pointer-events:all; }
+#track-btn.active { background:var(--terra); border-color:var(--terra); color:#F5EFE0; }
+#track-btn.acquiring { background:rgba(196,98,45,.15); border-color:var(--terra); color:var(--terra); }
+.track-icon {
+  width:16px; height:16px; border-radius:50%;
+  border:1.5px solid currentColor;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; flex-shrink:0;
+}
+.track-icon::after { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+#track-btn.active .track-icon::before {
+  content:''; position:absolute; inset:-2px; border-radius:50%;
+  border:1px solid currentColor;
+  animation:trackPulse 1.4s ease-out infinite;
+}
+@keyframes trackPulse { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.4);opacity:0} }
+
+/* ── Track toast ── */
+#track-toast {
+  position:fixed; top:3.6rem; right:1rem; z-index:150;
+  background:#1A1209; color:#F5EFE0;
+  font-family:'Jost',sans-serif; font-size:.65rem; letter-spacing:.06em;
+  padding:.45rem .9rem; border-radius:1rem;
+  max-width:55vw; text-align:right;
+  opacity:0; pointer-events:none; transition:opacity .3s;
+}
+#track-toast.show { opacity:1; }
+
+/* ── Leaflet map (track mode) ── */
+#leaflet-map {
+  position:absolute; inset:0; z-index:1;
+  display:none; /* shown only in track mode */
+}
+/* hide default Leaflet controls on mobile */
+#leaflet-map .leaflet-control-zoom { display:none; }
+.leaflet-tile { filter: saturate(0.7) brightness(1.05); }
+
+/* ── SVG overlay (scroll mode) ── */
+#map-svg-wrap {
+  position:absolute; inset:0; z-index:2;
+  transition:opacity .4s;
+}
+#map-svg-wrap svg { width:100%; height:100%; }
+
+/* ── Mode transition ── */
+#map-panel.track-mode #leaflet-map  { display:block; }
+#map-panel.track-mode #map-svg-wrap { opacity:0; pointer-events:none; }
+</style>
 <style>
 /* ═══════════════════════════════════════════
    TOKENS
-   ═══════════════════════════════ */
+═══════════════════════════════════════════ */
 :root {
   --terra:  #C4622D;
   --siena:  #7A2E10;
@@ -38,16 +105,17 @@ body {
 
 /* ═══════════════════════════════════════════
    LOADER
-   ═══════════════════════════════ */
+═══════════════════════════════════════════ */
 #loader {
   position:fixed; inset:0;
   display:grid; place-items:center;
   background:var(--ink);
   z-index:1000;
   opacity:1;
-  /* no transition — JS hides instantly */
+  transition:opacity .9s ease;
 }
-/* loader dismissed via inline style by JS */
+#loader.out  { opacity:0; pointer-events:none; }
+#loader.gone { display:none; }
 
 .loader-inner {
   display:flex; flex-direction:column; align-items:center; gap:2.2rem;
@@ -89,7 +157,7 @@ body {
 
 /* ═══════════════════════════════════════════
    PROGRESS BAR
-   ═══════════════════════════════ */
+═══════════════════════════════════════════ */
 #progress-bar {
   position:fixed; top:0; left:0; height:2px;
   background:var(--terra); z-index:200; pointer-events:none;
@@ -98,7 +166,7 @@ body {
 
 /* ═══════════════════════════════════════════
    NAV CRUMB  (top-left over map)
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 #nav-crumb {
   position:fixed; top:0; left:0; right:0; z-index:100;
   padding:.9rem 1.2rem;
@@ -120,7 +188,7 @@ body {
 
 /* ═══════════════════════════════════════════
    INTRO  (full viewport, normal flow)
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 .intro {
   height:100vh;
   background:var(--ink);
@@ -165,7 +233,7 @@ body {
 /* ═══════════════════════════════════════════
    MAP PANEL  — fixed, full width, top portion
    Hidden during intro, revealed on scroll
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 #map-panel {
   position:fixed;
   top:0; left:0;
@@ -194,7 +262,7 @@ body {
    Sits immediately after the intro section.
    Height = 5 stops × 100vh
    No margin, no padding — drawer is fixed.
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 #journey {
   height:calc(5 * 100vh);
   position:relative;
@@ -205,7 +273,7 @@ body {
 /* ═══════════════════════════════════════════
    DRAWER  — fixed, flush below map
    Slides down from map bottom when active
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 #drawer {
   position:fixed;
   top:var(--map-h); left:0; right:0;
@@ -272,7 +340,7 @@ body {
 
 /* ═══════════════════════════════════════════
    OUTRO
-   ═══════════════════════════════ */
+═══════════════════════════════════════════ */
 .outro {
   background:var(--ink);
   padding:12vh 8vw;
@@ -289,7 +357,7 @@ body {
 
 /* ═══════════════════════════════════════════
    MAP SVG  styles
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 .city-block  { fill:#DDD0B5; stroke:#C8B898; stroke-width:.5; }
 .piazza-fill { fill:#C9936A; opacity:.55; }
 .street      { fill:none; stroke:#C0A882; stroke-width:3.5; }
@@ -310,7 +378,7 @@ body {
 
 /* ═══════════════════════════════════════════
    MODAL
-   ═══════════════════════════════ */
+═══════════════════════════════════════════ */
 #backdrop {
   position:fixed; inset:0;
   background:rgba(26,18,9,.65); backdrop-filter:blur(5px);
@@ -319,8 +387,8 @@ body {
 #backdrop.open { opacity:1; pointer-events:all; }
 
 #modal {
-  position:fixed; top:0; right:0;
-  width:100vw; height:100vh;
+  position:fixed; top:0; left:0; right:0; bottom:0;
+  width:100%; height:100%;
   background:var(--cream); z-index:301;
   transform:translateX(100%);
   transition:transform .5s cubic-bezier(.77,0,.175,1);
@@ -351,90 +419,9 @@ body {
 .gal-arr.next{ right:.6rem; }
 
 /* ═══════════════════════════════════════════
-   SMART-TRACK BUTTON  (fixed, top-right)
-    ═══════════════════════════════════════════ */
-#track-btn {
-  position: fixed;
-  top: .75rem; right: 1rem;
-  z-index: 150;
-  display: flex; align-items: center; gap: .45rem;
-  padding: .45rem .85rem .45rem .65rem;
-  border: 1.5px solid rgba(196,98,45,.4);
-  background: rgba(245,239,224,.92);
-  backdrop-filter: blur(6px);
-  border-radius: 2rem;
-  cursor: pointer;
-  font-family: 'Jost', sans-serif;
-  font-size: .6rem; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--dim);
-  transition: background .25s, border-color .25s, color .25s;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  /* hidden during intro */
-  opacity: 0; pointer-events: none;
-  transition: opacity .4s, background .25s, border-color .25s, color .25s;
-}
-#track-btn.show { opacity: 1; pointer-events: all; }
-#track-btn.active {
-  background: var(--terra);
-  border-color: var(--terra);
-  color: var(--cream);
-}
-#track-btn.acquiring {
-  background: rgba(196,98,45,.15);
-  border-color: var(--terra);
-  color: var(--terra);
-}
-.track-icon {
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  display: flex; align-items: center; justify-content: center;
-  position: relative; flex-shrink: 0;
-}
-.track-icon::after {
-  content: '';
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-}
-#track-btn.active .track-icon::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  border: 1px solid currentColor;
-  animation: trackPulse 1.4s ease-out infinite;
-}
-@keyframes trackPulse {
-  0%   { transform:scale(1);   opacity:.8; }
-  100% { transform:scale(2.4); opacity:0;  }
-}
-
-/* Status toast */
-#track-toast {
-  position: fixed;
-  top: 3.6rem; right: 1rem;
-  z-index: 150;
-  background: var(--ink);
-  color: var(--cream);
-  font-family: 'Jost', sans-serif;
-  font-size: .65rem; letter-spacing: .06em;
-  padding: .45rem .9rem;
-  border-radius: 1rem;
-  max-width: 55vw;
-  text-align: right;
-  opacity: 0; pointer-events: none;
-  transition: opacity .3s;
-}
-#track-toast.show { opacity: 1; }
-
-/* Gallery: allow horizontal swipe */
-.modal-gallery { touch-action: pan-y; cursor: grab; }
-.modal-gallery.dragging { cursor: grabbing; }
-
+   SKETCH PANEL — fills space below drawer
    Fixed, below drawer, above outro
-    ═══════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 #sketch-panel {
   position: fixed;
   top: calc(var(--map-h) + var(--drawer-h));
@@ -466,30 +453,36 @@ body {
 }
 .sketch-svg.active { display: block; }
 
-/* All sketch strokes — initial hidden state, JS animates them */
+/* All sketch strokes share this style — hand-drawn feel */
 .sk {
   fill: none;
   stroke: var(--terra);
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: 0;
+  animation: sketchIn .6s ease forwards;
 }
 .sk-fill {
-  fill: rgba(196,98,45,.07);
+  fill: rgba(196,98,45,.06);
   stroke: none;
   opacity: 0;
-  transition: opacity .4s ease;
+  animation: sketchFill .4s ease .5s forwards;
 }
-.sk-fill.drawn { opacity: 1; }
 .sk-label {
   font-family: 'Cormorant Garamond', serif;
   font-style: italic;
   font-size: 10px;
   fill: var(--muted);
   opacity: 0;
-  transition: opacity .4s ease;
+  animation: sketchFill .4s ease .7s forwards;
 }
-.sk-label.drawn { opacity: 1; }
+@keyframes sketchIn {
+  0%   { opacity:0; stroke-dashoffset: var(--dash, 400); }
+  100% { opacity:.8; stroke-dashoffset: 0; }
+}
+@keyframes sketchFill {
+  to { opacity:1; }
+}
 
 .modal-num   { font-family:'Bebas Neue',sans-serif; font-size:.82rem; letter-spacing:.22em; color:var(--terra); margin-bottom:.35rem; }
 .modal-title { font-family:'Cormorant Garamond',serif; font-weight:600; font-size:1.9rem; line-height:1.05; color:var(--ink); }
@@ -501,40 +494,8 @@ body {
 .fact-lbl    { font-size:.55rem; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); margin-bottom:.15rem; }
 .fact-val    { font-family:'Cormorant Garamond',serif; font-size:.95rem; color:var(--ink); }
 
-/* ── Outro (redesigned) ── */
-
-.outro h2 {
-  font-family: 'Cormorant Garamond', serif; font-weight: 300;
-  font-size: clamp(2rem, 7vw, 3.5rem);
-  color: var(--cream); line-height: 1.1; margin-bottom: .5rem;
-  letter-spacing: -.01em;
-}
-.outro-sub {
-  font-family: 'Jost', sans-serif; font-weight: 300;
-  font-size: .65rem; letter-spacing: .28em; text-transform: uppercase;
-  color: var(--terra); margin-bottom: 2.5rem;
-}
-.outro-stops {
-  display: flex; flex-direction: column; gap: .55rem;
-  margin-bottom: 2.5rem;
-}
-.outro-stops span {
-  font-family: 'Cormorant Garamond', serif; font-style: italic;
-  font-size: .95rem; color: var(--muted);
-}
-.outro-rule {
-  width: 32px; height: 1px; background: var(--terra);
-  margin: 0 auto 2rem;
-}
-.outro-quote {
-  font-family: 'Cormorant Garamond', serif; font-style: italic;
-  font-size: 1.1rem; color: var(--sand); margin-bottom: .5rem;
-}
-.outro-quote-small {
-  font-family: 'Cormorant Garamond', serif; font-style: italic;
-  font-size: .8rem; color: var(--muted);
-}
-
+/* Modal body — generous padding, never clipped */
+.modal-body  { padding: 1.6rem 1.4rem 3rem 1.4rem; }
 </style>
 </head>
 <body>
@@ -560,14 +521,11 @@ body {
 
 <!-- CHROME -->
 <div id="progress-bar"></div>
-
-<!-- Smart-Track toggle -->
-<button id="track-btn" onclick="toggleTrack()" aria-label="Smart-Track umschalten">
+<button id="track-btn" onclick="toggleTrack()">
   <span class="track-icon"></span>
   <span id="track-label">Smart-Track</span>
 </button>
 <div id="track-toast"></div>
-
 <div id="nav-crumb">
   <span class="crumb-city">Siena</span>
   <span class="crumb-sep">—</span>
@@ -578,8 +536,9 @@ body {
 <!-- INTRO -->
 <section class="intro">
   <div class="intro-bg"></div>
-  <span class="intro-kicker">Siena · Stadtführer</span>
-  <h1>Siena</h1>
+  <span class="intro-kicker">Ein Stadtführer · Toscana · Italia</span>
+  <h1>Sie<em>na</em></h1>
+  <p class="intro-sub">Eine Passeggiata durch die mittelalterliche Stadt —<br>Schritt für Schritt, Stein für Stein.</p>
   <div class="scroll-cue">
     <span>Scrollen</span>
     <div class="scroll-line"></div>
@@ -588,6 +547,10 @@ body {
 
 <!-- MAP (fixed) -->
 <div id="map-panel">
+  <!-- Leaflet real map (track mode) -->
+  <div id="leaflet-map"></div>
+  <!-- SVG schematic (scroll mode) -->
+  <div id="map-svg-wrap">
   <svg id="mapSvg" viewBox="48 0 240 272" preserveAspectRatio="xMidYMid meet">
 
     <!-- City fabric -->
@@ -641,14 +604,6 @@ body {
       filter="drop-shadow(0 0 5px rgba(196,98,45,.9))"
       opacity="0"/>
 
-    <!-- GPS user position dot (shown when Smart-Track active) -->
-    <circle id="gps-dot" cx="-999" cy="-999" r="5"
-      fill="#2563eb" stroke="white" stroke-width="1.5"
-      filter="drop-shadow(0 0 4px rgba(37,99,235,.8))"
-      opacity="0"/>
-    <circle id="gps-dot-ring" cx="-999" cy="-999" r="12"
-      fill="rgba(37,99,235,.12)" stroke="#2563eb" stroke-width="1"
-      opacity="0"/>
     <!-- Ripple rings per stop -->
     <circle id="rp0" cx="148" cy="92"  r="9" fill="none" stroke="var(--terra)" stroke-width="1.5" opacity="0"/>
     <circle id="rp1" cx="262" cy="158" r="9" fill="none" stroke="var(--terra)" stroke-width="1.5" opacity="0"/>
@@ -664,11 +619,11 @@ body {
     <circle class="stop-ring" cx="340" cy="448" r="15"/>
 
     <!-- Clickable stop dots -->
-    <circle class="stop-dot" id="dot0" cx="148" cy="92"  r="7" onclick="dotTap(0)"/>
-    <circle class="stop-dot" id="dot1" cx="262" cy="158" r="7" onclick="dotTap(1)"/>
-    <circle class="stop-dot" id="dot2" cx="350" cy="290" r="7" onclick="dotTap(2)"/>
-    <circle class="stop-dot" id="dot3" cx="350" cy="330" r="7" onclick="dotTap(3)"/>
-    <circle class="stop-dot" id="dot4" cx="340" cy="448" r="7" onclick="dotTap(4)"/>
+    <circle class="stop-dot" id="dot0" cx="148" cy="92"  r="7" onclick="scrollToStop(0)"/>
+    <circle class="stop-dot" id="dot1" cx="262" cy="158" r="7" onclick="scrollToStop(1)"/>
+    <circle class="stop-dot" id="dot2" cx="350" cy="290" r="7" onclick="scrollToStop(2)"/>
+    <circle class="stop-dot" id="dot3" cx="350" cy="330" r="7" onclick="scrollToStop(3)"/>
+    <circle class="stop-dot" id="dot4" cx="340" cy="448" r="7" onclick="scrollToStop(4)"/>
 
     <!-- Labels -->
     <text class="lbl-district" x="145" y="172" transform="rotate(-8,145,172)">Terzo di Camollia</text>
@@ -693,9 +648,10 @@ body {
       <polygon points="0,-11 2.5,0 0,-4 -2.5,0" fill="var(--terra)"/>
     </g>
   </svg>
-</div>
+  </div><!-- /map-svg-wrap -->
+</div><!-- /map-panel -->
 
-<!-- JOURNEY (scroll space) -->
+<!-- JOURNEY (scroll space only — no visible content) -->
 <div id="journey"></div>
 
 <!-- DRAWER (fixed below map) -->
@@ -716,29 +672,29 @@ body {
   <!-- Stop 0: Porta Camollia — city gate arch with inscription band -->
   <svg class="sketch-svg" id="sk0" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid meet">
     <!-- ground -->
-    <line class="sk" x1="20" y1="155" x2="300" y2="155" stroke-width="1" style="--sd:280; stroke-dasharray:280; animation-delay:.0s"/>
+    <line class="sk" x1="20" y1="155" x2="300" y2="155" stroke-width="1" style="--dash:280; stroke-dasharray:280; animation-delay:.0s"/>
     <!-- left pier -->
     <rect class="sk-fill" x="72" y="60" width="36" height="95"/>
-    <line class="sk" x1="72" y1="155" x2="72" y2="60" stroke-width="1.8" style="--sd:95; stroke-dasharray:95; animation-delay:.05s"/>
-    <line class="sk" x1="108" y1="155" x2="108" y2="60" stroke-width="1.8" style="--sd:95; stroke-dasharray:95; animation-delay:.1s"/>
+    <line class="sk" x1="72" y1="155" x2="72" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.05s"/>
+    <line class="sk" x1="108" y1="155" x2="108" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.1s"/>
     <!-- right pier -->
     <rect class="sk-fill" x="212" y="60" width="36" height="95"/>
-    <line class="sk" x1="212" y1="155" x2="212" y2="60" stroke-width="1.8" style="--sd:95; stroke-dasharray:95; animation-delay:.15s"/>
-    <line class="sk" x1="248" y1="155" x2="248" y2="60" stroke-width="1.8" style="--sd:95; stroke-dasharray:95; animation-delay:.2s"/>
+    <line class="sk" x1="212" y1="155" x2="212" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.15s"/>
+    <line class="sk" x1="248" y1="155" x2="248" y2="60" stroke-width="1.8" style="--dash:95; stroke-dasharray:95; animation-delay:.2s"/>
     <!-- arch -->
-    <path class="sk" d="M108,60 Q108,18 160,18 Q212,18 212,60" stroke-width="2" style="--sd:220; stroke-dasharray:220; animation-delay:.25s"/>
+    <path class="sk" d="M108,60 Q108,18 160,18 Q212,18 212,60" stroke-width="2" style="--dash:220; stroke-dasharray:220; animation-delay:.25s"/>
     <!-- inner arch shadow -->
-    <path class="sk" d="M116,60 Q116,26 160,26 Q204,26 204,60" stroke-width="1" style="--sd:200; stroke-dasharray:200; animation-delay:.35s"/>
+    <path class="sk" d="M116,60 Q116,26 160,26 Q204,26 204,60" stroke-width="1" style="--dash:200; stroke-dasharray:200; animation-delay:.35s"/>
     <!-- inscription band -->
     <rect class="sk-fill" x="72" y="52" width="176" height="14"/>
-    <line class="sk" x1="72" y1="52" x2="248" y2="52" stroke-width="1" style="--sd:176; stroke-dasharray:176; animation-delay:.4s"/>
-    <line class="sk" x1="72" y1="66" x2="248" y2="66" stroke-width="1" style="--sd:176; stroke-dasharray:176; animation-delay:.45s"/>
+    <line class="sk" x1="72" y1="52" x2="248" y2="52" stroke-width="1" style="--dash:176; stroke-dasharray:176; animation-delay:.4s"/>
+    <line class="sk" x1="72" y1="66" x2="248" y2="66" stroke-width="1" style="--dash:176; stroke-dasharray:176; animation-delay:.45s"/>
     <!-- keystone detail -->
-    <polygon class="sk" points="152,18 168,18 165,28 155,28" stroke-width="1" style="--sd:60; stroke-dasharray:60; animation-delay:.5s"/>
+    <polygon class="sk" points="152,18 168,18 165,28 155,28" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.5s"/>
     <!-- shadow lines on piers -->
-    <line class="sk" x1="84" y1="70" x2="84" y2="150" stroke-width=".6" style="--sd:80; stroke-dasharray:80; animation-delay:.55s"/>
-    <line class="sk" x1="92" y1="70" x2="92" y2="150" stroke-width=".6" style="--sd:80; stroke-dasharray:80; animation-delay:.58s"/>
-    <line class="sk" x1="224" y1="70" x2="224" y2="150" stroke-width=".6" style="--sd:80; stroke-dasharray:80; animation-delay:.61s"/>
+    <line class="sk" x1="84" y1="70" x2="84" y2="150" stroke-width=".6" style="--dash:80; stroke-dasharray:80; animation-delay:.55s"/>
+    <line class="sk" x1="92" y1="70" x2="92" y2="150" stroke-width=".6" style="--dash:80; stroke-dasharray:80; animation-delay:.58s"/>
+    <line class="sk" x1="224" y1="70" x2="224" y2="150" stroke-width=".6" style="--dash:80; stroke-dasharray:80; animation-delay:.61s"/>
     <!-- label -->
     <text class="sk-label" x="160" y="173" text-anchor="middle">Porta Camollia · 1604</text>
   </svg>
@@ -746,48 +702,48 @@ body {
   <!-- Stop 1: Piazza Salimbeni — three palace façades + open square -->
   <svg class="sketch-svg" id="sk1" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid meet">
     <!-- ground plane -->
-    <line class="sk" x1="20" y1="150" x2="300" y2="150" stroke-width="1" style="--sd:280; stroke-dasharray:280; animation-delay:.0s"/>
+    <line class="sk" x1="20" y1="150" x2="300" y2="150" stroke-width="1" style="--dash:280; stroke-dasharray:280; animation-delay:.0s"/>
     <!-- perspective lines to piazza depth -->
-    <line class="sk" x1="20" y1="150" x2="100" y2="108" stroke-width=".6" style="--sd:100; stroke-dasharray:100; animation-delay:.05s"/>
-    <line class="sk" x1="300" y1="150" x2="220" y2="108" stroke-width=".6" style="--sd:100; stroke-dasharray:100; animation-delay:.08s"/>
+    <line class="sk" x1="20" y1="150" x2="100" y2="108" stroke-width=".6" style="--dash:100; stroke-dasharray:100; animation-delay:.05s"/>
+    <line class="sk" x1="300" y1="150" x2="220" y2="108" stroke-width=".6" style="--dash:100; stroke-dasharray:100; animation-delay:.08s"/>
 
     <!-- Left palace (Gothic — Salimbeni) -->
     <rect class="sk-fill" x="18" y="72" width="88" height="78"/>
-    <rect class="sk" x="18" y="72" width="88" height="78" stroke-width="1.6" style="--sd:332; stroke-dasharray:332; animation-delay:.1s"/>
+    <rect class="sk" x="18" y="72" width="88" height="78" stroke-width="1.6" style="--dash:332; stroke-dasharray:332; animation-delay:.1s"/>
     <!-- Gothic windows left -->
-    <path class="sk" d="M34,108 Q34,96 42,96 Q50,96 50,108" stroke-width="1" style="--sd:50; stroke-dasharray:50; animation-delay:.2s"/>
-    <path class="sk" d="M58,108 Q58,96 66,96 Q74,96 74,108" stroke-width="1" style="--sd:50; stroke-dasharray:50; animation-delay:.22s"/>
-    <path class="sk" d="M82,108 Q82,96 90,96 Q98,96 98,108" stroke-width="1" style="--sd:50; stroke-dasharray:50; animation-delay:.24s"/>
+    <path class="sk" d="M34,108 Q34,96 42,96 Q50,96 50,108" stroke-width="1" style="--dash:50; stroke-dasharray:50; animation-delay:.2s"/>
+    <path class="sk" d="M58,108 Q58,96 66,96 Q74,96 74,108" stroke-width="1" style="--dash:50; stroke-dasharray:50; animation-delay:.22s"/>
+    <path class="sk" d="M82,108 Q82,96 90,96 Q98,96 98,108" stroke-width="1" style="--dash:50; stroke-dasharray:50; animation-delay:.24s"/>
     <!-- battlements left palace -->
-    <polyline class="sk" points="18,72 18,66 26,66 26,60 34,60 34,66 42,66 42,60 50,60 50,66 58,66 58,60 66,60 66,66 74,66 74,60 82,60 82,66 90,66 90,60 98,60 98,66 106,66 106,72" stroke-width="1.2" style="--sd:160; stroke-dasharray:160; animation-delay:.28s"/>
+    <polyline class="sk" points="18,72 18,66 26,66 26,60 34,60 34,66 42,66 42,60 50,60 50,66 58,66 58,60 66,60 66,66 74,66 74,60 82,60 82,66 90,66 90,60 98,60 98,66 106,66 106,72" stroke-width="1.2" style="--dash:160; stroke-dasharray:160; animation-delay:.28s"/>
 
     <!-- Centre palace (Renaissance — Spannocchi) -->
     <rect class="sk-fill" x="116" y="56" width="88" height="94"/>
-    <rect class="sk" x="116" y="56" width="88" height="94" stroke-width="1.8" style="--sd:364; stroke-dasharray:364; animation-delay:.12s"/>
+    <rect class="sk" x="116" y="56" width="88" height="94" stroke-width="1.8" style="--dash:364; stroke-dasharray:364; animation-delay:.12s"/>
     <!-- Renaissance windows centre -->
-    <rect class="sk" x="128" y="80" width="16" height="20" rx="1" stroke-width="1" style="--sd:72; stroke-dasharray:72; animation-delay:.3s"/>
-    <line class="sk" x1="136" y1="80" x2="136" y2="100" stroke-width=".6" style="--sd:20; stroke-dasharray:20; animation-delay:.32s"/>
-    <rect class="sk" x="152" y="80" width="16" height="20" rx="1" stroke-width="1" style="--sd:72; stroke-dasharray:72; animation-delay:.34s"/>
-    <line class="sk" x1="160" y1="80" x2="160" y2="100" stroke-width=".6" style="--sd:20; stroke-dasharray:20; animation-delay:.36s"/>
-    <rect class="sk" x="176" y="80" width="16" height="20" rx="1" stroke-width="1" style="--sd:72; stroke-dasharray:72; animation-delay:.38s"/>
+    <rect class="sk" x="128" y="80" width="16" height="20" rx="1" stroke-width="1" style="--dash:72; stroke-dasharray:72; animation-delay:.3s"/>
+    <line class="sk" x1="136" y1="80" x2="136" y2="100" stroke-width=".6" style="--dash:20; stroke-dasharray:20; animation-delay:.32s"/>
+    <rect class="sk" x="152" y="80" width="16" height="20" rx="1" stroke-width="1" style="--dash:72; stroke-dasharray:72; animation-delay:.34s"/>
+    <line class="sk" x1="160" y1="80" x2="160" y2="100" stroke-width=".6" style="--dash:20; stroke-dasharray:20; animation-delay:.36s"/>
+    <rect class="sk" x="176" y="80" width="16" height="20" rx="1" stroke-width="1" style="--dash:72; stroke-dasharray:72; animation-delay:.38s"/>
     <!-- cornice line -->
-    <line class="sk" x1="116" y1="72" x2="204" y2="72" stroke-width="1" style="--sd:88; stroke-dasharray:88; animation-delay:.42s"/>
+    <line class="sk" x1="116" y1="72" x2="204" y2="72" stroke-width="1" style="--dash:88; stroke-dasharray:88; animation-delay:.42s"/>
 
     <!-- Right palace (Baroque — Tantucci) -->
     <rect class="sk-fill" x="214" y="78" width="88" height="72"/>
-    <rect class="sk" x="214" y="78" width="88" height="72" stroke-width="1.6" style="--sd:320; stroke-dasharray:320; animation-delay:.14s"/>
+    <rect class="sk" x="214" y="78" width="88" height="72" stroke-width="1.6" style="--dash:320; stroke-dasharray:320; animation-delay:.14s"/>
     <!-- Baroque windows right -->
-    <path class="sk" d="M228,112 Q228,100 236,100 Q244,100 244,112 L244,120 L228,120 Z" stroke-width="1" style="--sd:60; stroke-dasharray:60; animation-delay:.44s"/>
-    <path class="sk" d="M256,112 Q256,100 264,100 Q272,100 272,112 L272,120 L256,120 Z" stroke-width="1" style="--sd:60; stroke-dasharray:60; animation-delay:.46s"/>
-    <path class="sk" d="M284,112 Q284,100 292,100 Q300,100 300,112 L300,120 L284,120 Z" stroke-width="1" style="--sd:60; stroke-dasharray:60; animation-delay:.48s"/>
+    <path class="sk" d="M228,112 Q228,100 236,100 Q244,100 244,112 L244,120 L228,120 Z" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.44s"/>
+    <path class="sk" d="M256,112 Q256,100 264,100 Q272,100 272,112 L272,120 L256,120 Z" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.46s"/>
+    <path class="sk" d="M284,112 Q284,100 292,100 Q300,100 300,112 L300,120 L284,120 Z" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.48s"/>
     <!-- pediment right -->
-    <polyline class="sk" points="214,78 258,58 302,78" stroke-width="1" style="--sd:100; stroke-dasharray:100; animation-delay:.52s"/>
+    <polyline class="sk" points="214,78 258,58 302,78" stroke-width="1" style="--dash:100; stroke-dasharray:100; animation-delay:.52s"/>
 
     <!-- piazza floor hatching -->
-    <line class="sk" x1="90" y1="135" x2="105" y2="150" stroke-width=".5" style="--sd:25; stroke-dasharray:25; animation-delay:.6s"/>
-    <line class="sk" x1="110" y1="130" x2="125" y2="150" stroke-width=".5" style="--sd:28; stroke-dasharray:28; animation-delay:.62s"/>
-    <line class="sk" x1="190" y1="130" x2="205" y2="150" stroke-width=".5" style="--sd:28; stroke-dasharray:28; animation-delay:.64s"/>
-    <line class="sk" x1="210" y1="135" x2="225" y2="150" stroke-width=".5" style="--sd:25; stroke-dasharray:25; animation-delay:.66s"/>
+    <line class="sk" x1="90" y1="135" x2="105" y2="150" stroke-width=".5" style="--dash:25; stroke-dasharray:25; animation-delay:.6s"/>
+    <line class="sk" x1="110" y1="130" x2="125" y2="150" stroke-width=".5" style="--dash:28; stroke-dasharray:28; animation-delay:.62s"/>
+    <line class="sk" x1="190" y1="130" x2="205" y2="150" stroke-width=".5" style="--dash:28; stroke-dasharray:28; animation-delay:.64s"/>
+    <line class="sk" x1="210" y1="135" x2="225" y2="150" stroke-width=".5" style="--dash:25; stroke-dasharray:25; animation-delay:.66s"/>
 
     <text class="sk-label" x="160" y="173" text-anchor="middle">Piazza Salimbeni · tre epoche</text>
   </svg>
@@ -797,9 +753,9 @@ body {
     <!-- Campo shell outline — plan view -->
     <ellipse class="sk-fill" cx="148" cy="115" rx="108" ry="72"/>
     <path class="sk" d="M60,90 Q60,50 148,43 Q236,50 236,90 L240,148 Q200,175 148,178 Q96,175 56,148 Z"
-      stroke-width="2" style="--sd:620; stroke-dasharray:620; animation-delay:.0s"/>
+      stroke-width="2" style="--dash:620; stroke-dasharray:620; animation-delay:.0s"/>
     <!-- 9 radial segments from bottom-center (Palazzo Pubblico edge) -->
-    <g style="--sd:120; stroke-dasharray:120;">
+    <g style="--dash:120; stroke-dasharray:120;">
       <line class="sk" x1="148" y1="175" x2="60"  y2="90"  stroke-width=".9" style="animation-delay:.15s"/>
       <line class="sk" x1="148" y1="175" x2="80"  y2="55"  stroke-width=".9" style="animation-delay:.18s"/>
       <line class="sk" x1="148" y1="175" x2="115" y2="44"  stroke-width=".9" style="animation-delay:.21s"/>
@@ -812,17 +768,17 @@ body {
     </g>
     <!-- Palazzo Pubblico bottom edge of campo -->
     <rect class="sk-fill" x="108" y="170" width="80" height="18"/>
-    <rect class="sk" x="108" y="168" width="80" height="20" stroke-width="1.6" style="--sd:200; stroke-dasharray:200; animation-delay:.45s"/>
+    <rect class="sk" x="108" y="168" width="80" height="20" stroke-width="1.6" style="--dash:200; stroke-dasharray:200; animation-delay:.45s"/>
     <!-- Torre del Mangia — tall slim tower -->
     <rect class="sk-fill" x="256" y="18" width="16" height="160"/>
-    <rect class="sk" x="256" y="18" width="16" height="160" stroke-width="1.8" style="--sd:352; stroke-dasharray:352; animation-delay:.5s"/>
+    <rect class="sk" x="256" y="18" width="16" height="160" stroke-width="1.8" style="--dash:352; stroke-dasharray:352; animation-delay:.5s"/>
     <!-- tower top -->
-    <polygon class="sk" points="252,18 272,18 268,8 256,8" stroke-width="1.2" style="--sd:60; stroke-dasharray:60; animation-delay:.6s"/>
+    <polygon class="sk" points="252,18 272,18 268,8 256,8" stroke-width="1.2" style="--dash:60; stroke-dasharray:60; animation-delay:.6s"/>
     <!-- bell openings on tower -->
-    <rect class="sk" x="258" y="30" width="12" height="16" stroke-width=".8" style="--sd:56; stroke-dasharray:56; animation-delay:.65s"/>
-    <rect class="sk" x="258" y="55" width="12" height="16" stroke-width=".8" style="--sd:56; stroke-dasharray:56; animation-delay:.68s"/>
+    <rect class="sk" x="258" y="30" width="12" height="16" stroke-width=".8" style="--dash:56; stroke-dasharray:56; animation-delay:.65s"/>
+    <rect class="sk" x="258" y="55" width="12" height="16" stroke-width=".8" style="--dash:56; stroke-dasharray:56; animation-delay:.68s"/>
     <!-- ground -->
-    <line class="sk" x1="20" y1="180" x2="250" y2="180" stroke-width=".8" style="--sd:230; stroke-dasharray:230; animation-delay:.7s"/>
+    <line class="sk" x1="20" y1="180" x2="250" y2="180" stroke-width=".8" style="--dash:230; stroke-dasharray:230; animation-delay:.7s"/>
     <!-- label -->
     <text class="sk-label" x="148" y="197" text-anchor="middle">Il Campo · 9 Segmente · Plan</text>
   </svg>
@@ -830,12 +786,12 @@ body {
   <!-- Stop 3: Palazzo Pubblico — elevation with Torre del Mangia -->
   <svg class="sketch-svg" id="sk3" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet">
     <!-- ground -->
-    <line class="sk" x1="10" y1="175" x2="310" y2="175" stroke-width="1" style="--sd:300; stroke-dasharray:300; animation-delay:.0s"/>
+    <line class="sk" x1="10" y1="175" x2="310" y2="175" stroke-width="1" style="--dash:300; stroke-dasharray:300; animation-delay:.0s"/>
     <!-- main palazzo body -->
     <rect class="sk-fill" x="40" y="100" width="200" height="75"/>
-    <rect class="sk" x="40" y="100" width="200" height="75" stroke-width="2" style="--sd:550; stroke-dasharray:550; animation-delay:.05s"/>
+    <rect class="sk" x="40" y="100" width="200" height="75" stroke-width="2" style="--dash:550; stroke-dasharray:550; animation-delay:.05s"/>
     <!-- Gothic bifore windows — 5 across -->
-    <g style="stroke-width:1; --sd:60; stroke-dasharray:60;">
+    <g style="stroke-width:1; --dash:60; stroke-dasharray:60;">
       <path class="sk" d="M58,135 Q58,122 66,122 Q74,122 74,135"  style="animation-delay:.15s"/>
       <path class="sk" d="M94,135 Q94,122 102,122 Q110,122 110,135" style="animation-delay:.18s"/>
       <path class="sk" d="M130,135 Q130,122 138,122 Q146,122 146,135" style="animation-delay:.21s"/>
@@ -844,77 +800,77 @@ body {
     </g>
     <!-- cornice / battlements -->
     <polyline class="sk" points="40,100 40,92 52,92 52,84 62,84 62,92 72,92 72,84 82,84 82,92 92,92 92,84 102,84 102,92 112,92 112,84 122,84 122,92 132,92 132,84 142,84 142,92 152,92 152,84 162,84 162,92 172,92 172,84 182,84 182,92 192,92 192,84 202,84 202,92 212,92 212,84 222,84 222,92 232,92 232,84 240,84 240,100"
-      stroke-width="1.2" style="--sd:300; stroke-dasharray:300; animation-delay:.3s"/>
+      stroke-width="1.2" style="--dash:300; stroke-dasharray:300; animation-delay:.3s"/>
     <!-- left tower wing -->
     <rect class="sk-fill" x="14" y="115" width="28" height="60"/>
-    <rect class="sk" x="14" y="115" width="28" height="60" stroke-width="1.4" style="--sd:176; stroke-dasharray:176; animation-delay:.08s"/>
+    <rect class="sk" x="14" y="115" width="28" height="60" stroke-width="1.4" style="--dash:176; stroke-dasharray:176; animation-delay:.08s"/>
     <!-- right tower wing -->
     <rect class="sk-fill" x="238" y="115" width="28" height="60"/>
-    <rect class="sk" x="238" y="115" width="28" height="60" stroke-width="1.4" style="--sd:176; stroke-dasharray:176; animation-delay:.1s"/>
+    <rect class="sk" x="238" y="115" width="28" height="60" stroke-width="1.4" style="--dash:176; stroke-dasharray:176; animation-delay:.1s"/>
     <!-- Torre del Mangia — very tall -->
     <rect class="sk-fill" x="270" y="10" width="22" height="165"/>
-    <rect class="sk" x="270" y="10" width="22" height="165" stroke-width="2" style="--sd:374; stroke-dasharray:374; animation-delay:.12s"/>
+    <rect class="sk" x="270" y="10" width="22" height="165" stroke-width="2" style="--dash:374; stroke-dasharray:374; animation-delay:.12s"/>
     <!-- tower top cap -->
-    <polygon class="sk" points="265,10 297,10 292,2 275,2" stroke-width="1.4" style="--sd:70; stroke-dasharray:70; animation-delay:.55s"/>
+    <polygon class="sk" points="265,10 297,10 292,2 275,2" stroke-width="1.4" style="--dash:70; stroke-dasharray:70; animation-delay:.55s"/>
     <!-- tower windows -->
-    <rect class="sk" x="274" y="25" width="14" height="18" stroke-width=".8" style="--sd:64; stroke-dasharray:64; animation-delay:.58s"/>
-    <rect class="sk" x="274" y="55" width="14" height="18" stroke-width=".8" style="--sd:64; stroke-dasharray:64; animation-delay:.61s"/>
-    <rect class="sk" x="274" y="85" width="14" height="18" stroke-width=".8" style="--sd:64; stroke-dasharray:64; animation-delay:.64s"/>
+    <rect class="sk" x="274" y="25" width="14" height="18" stroke-width=".8" style="--dash:64; stroke-dasharray:64; animation-delay:.58s"/>
+    <rect class="sk" x="274" y="55" width="14" height="18" stroke-width=".8" style="--dash:64; stroke-dasharray:64; animation-delay:.61s"/>
+    <rect class="sk" x="274" y="85" width="14" height="18" stroke-width=".8" style="--dash:64; stroke-dasharray:64; animation-delay:.64s"/>
     <!-- dimension arrow for 102m -->
-    <line class="sk" x1="300" y1="10" x2="300" y2="175" stroke-width=".6" style="--sd:165; stroke-dasharray:165; animation-delay:.7s"/>
-    <line class="sk" x1="296" y1="14" x2="300" y2="10" stroke-width=".6" style="--sd:10; stroke-dasharray:10; animation-delay:.72s"/>
-    <line class="sk" x1="304" y1="14" x2="300" y2="10" stroke-width=".6" style="--sd:10; stroke-dasharray:10; animation-delay:.72s"/>
+    <line class="sk" x1="300" y1="10" x2="300" y2="175" stroke-width=".6" style="--dash:165; stroke-dasharray:165; animation-delay:.7s"/>
+    <line class="sk" x1="296" y1="14" x2="300" y2="10" stroke-width=".6" style="--dash:10; stroke-dasharray:10; animation-delay:.72s"/>
+    <line class="sk" x1="304" y1="14" x2="300" y2="10" stroke-width=".6" style="--dash:10; stroke-dasharray:10; animation-delay:.72s"/>
     <text class="sk-label" x="310" y="95" text-anchor="middle" style="font-size:8px;">102m</text>
     <!-- entrance arch -->
-    <path class="sk" d="M126,175 Q126,155 140,155 Q154,155 154,175" stroke-width="1" style="--sd:60; stroke-dasharray:60; animation-delay:.5s"/>
+    <path class="sk" d="M126,175 Q126,155 140,155 Q154,155 154,175" stroke-width="1" style="--dash:60; stroke-dasharray:60; animation-delay:.5s"/>
     <text class="sk-label" x="148" y="195" text-anchor="middle">Palazzo Pubblico · 1297–1310</text>
   </svg>
 
   <!-- Stop 4: Duomo di Siena — west facade -->
   <svg class="sketch-svg" id="sk4" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet">
     <!-- ground -->
-    <line class="sk" x1="10" y1="180" x2="310" y2="180" stroke-width="1" style="--sd:300; stroke-dasharray:300; animation-delay:.0s"/>
+    <line class="sk" x1="10" y1="180" x2="310" y2="180" stroke-width="1" style="--dash:300; stroke-dasharray:300; animation-delay:.0s"/>
     <!-- steps -->
-    <line class="sk" x1="55" y1="180" x2="265" y2="180" stroke-width="1.5" style="--sd:210; stroke-dasharray:210; animation-delay:.02s"/>
-    <line class="sk" x1="62" y1="175" x2="258" y2="175" stroke-width="1" style="--sd:196; stroke-dasharray:196; animation-delay:.04s"/>
-    <line class="sk" x1="69" y1="170" x2="251" y2="170" stroke-width="1" style="--sd:182; stroke-dasharray:182; animation-delay:.06s"/>
+    <line class="sk" x1="55" y1="180" x2="265" y2="180" stroke-width="1.5" style="--dash:210; stroke-dasharray:210; animation-delay:.02s"/>
+    <line class="sk" x1="62" y1="175" x2="258" y2="175" stroke-width="1" style="--dash:196; stroke-dasharray:196; animation-delay:.04s"/>
+    <line class="sk" x1="69" y1="170" x2="251" y2="170" stroke-width="1" style="--dash:182; stroke-dasharray:182; animation-delay:.06s"/>
     <!-- nave body -->
     <rect class="sk-fill" x="69" y="90" width="182" height="80"/>
-    <rect class="sk" x="69" y="90" width="182" height="80" stroke-width="2" style="--sd:524; stroke-dasharray:524; animation-delay:.08s"/>
+    <rect class="sk" x="69" y="90" width="182" height="80" stroke-width="2" style="--dash:524; stroke-dasharray:524; animation-delay:.08s"/>
     <!-- horizontal marble stripes -->
-    <line class="sk" x1="69" y1="100" x2="251" y2="100" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.2s"/>
-    <line class="sk" x1="69" y1="110" x2="251" y2="110" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.22s"/>
-    <line class="sk" x1="69" y1="120" x2="251" y2="120" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.24s"/>
-    <line class="sk" x1="69" y1="130" x2="251" y2="130" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.26s"/>
-    <line class="sk" x1="69" y1="140" x2="251" y2="140" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.28s"/>
-    <line class="sk" x1="69" y1="150" x2="251" y2="150" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.30s"/>
-    <line class="sk" x1="69" y1="160" x2="251" y2="160" stroke-width=".5" style="--sd:182; stroke-dasharray:182; animation-delay:.32s"/>
+    <line class="sk" x1="69" y1="100" x2="251" y2="100" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.2s"/>
+    <line class="sk" x1="69" y1="110" x2="251" y2="110" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.22s"/>
+    <line class="sk" x1="69" y1="120" x2="251" y2="120" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.24s"/>
+    <line class="sk" x1="69" y1="130" x2="251" y2="130" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.26s"/>
+    <line class="sk" x1="69" y1="140" x2="251" y2="140" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.28s"/>
+    <line class="sk" x1="69" y1="150" x2="251" y2="150" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.30s"/>
+    <line class="sk" x1="69" y1="160" x2="251" y2="160" stroke-width=".5" style="--dash:182; stroke-dasharray:182; animation-delay:.32s"/>
     <!-- central gable -->
     <polygon class="sk-fill" x1="60" y1="10" points="160,14 90,90 230,90"/>
-    <polyline class="sk" points="160,14 90,90" stroke-width="2" style="--sd:108; stroke-dasharray:108; animation-delay:.1s"/>
-    <polyline class="sk" points="160,14 230,90" stroke-width="2" style="--sd:108; stroke-dasharray:108; animation-delay:.12s"/>
+    <polyline class="sk" points="160,14 90,90" stroke-width="2" style="--dash:108; stroke-dasharray:108; animation-delay:.1s"/>
+    <polyline class="sk" points="160,14 230,90" stroke-width="2" style="--dash:108; stroke-dasharray:108; animation-delay:.12s"/>
     <!-- left aisle gable -->
-    <polyline class="sk" points="118,54 69,90" stroke-width="1.4" style="--sd:70; stroke-dasharray:70; animation-delay:.14s"/>
-    <polyline class="sk" points="118,54 90,90" stroke-width="1.4" style="--sd:50; stroke-dasharray:50; animation-delay:.16s"/>
+    <polyline class="sk" points="118,54 69,90" stroke-width="1.4" style="--dash:70; stroke-dasharray:70; animation-delay:.14s"/>
+    <polyline class="sk" points="118,54 90,90" stroke-width="1.4" style="--dash:50; stroke-dasharray:50; animation-delay:.16s"/>
     <!-- right aisle gable -->
-    <polyline class="sk" points="202,54 251,90" stroke-width="1.4" style="--sd:70; stroke-dasharray:70; animation-delay:.18s"/>
-    <polyline class="sk" points="202,54 230,90" stroke-width="1.4" style="--sd:50; stroke-dasharray:50; animation-delay:.20s"/>
+    <polyline class="sk" points="202,54 251,90" stroke-width="1.4" style="--dash:70; stroke-dasharray:70; animation-delay:.18s"/>
+    <polyline class="sk" points="202,54 230,90" stroke-width="1.4" style="--dash:50; stroke-dasharray:50; animation-delay:.20s"/>
     <!-- rose window -->
-    <circle class="sk" cx="160" cy="58" r="18" stroke-width="1.2" style="--sd:113; stroke-dasharray:113; animation-delay:.35s"/>
-    <circle class="sk" cx="160" cy="58" r="10" stroke-width=".8" style="--sd:63; stroke-dasharray:63; animation-delay:.38s"/>
-    <line class="sk" x1="160" y1="40" x2="160" y2="76" stroke-width=".6" style="--sd:36; stroke-dasharray:36; animation-delay:.4s"/>
-    <line class="sk" x1="142" y1="58" x2="178" y2="58" stroke-width=".6" style="--sd:36; stroke-dasharray:36; animation-delay:.42s"/>
-    <line class="sk" x1="147" y1="45" x2="173" y2="71" stroke-width=".6" style="--sd:36; stroke-dasharray:36; animation-delay:.44s"/>
-    <line class="sk" x1="173" y1="45" x2="147" y2="71" stroke-width=".6" style="--sd:36; stroke-dasharray:36; animation-delay:.46s"/>
+    <circle class="sk" cx="160" cy="58" r="18" stroke-width="1.2" style="--dash:113; stroke-dasharray:113; animation-delay:.35s"/>
+    <circle class="sk" cx="160" cy="58" r="10" stroke-width=".8" style="--dash:63; stroke-dasharray:63; animation-delay:.38s"/>
+    <line class="sk" x1="160" y1="40" x2="160" y2="76" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.4s"/>
+    <line class="sk" x1="142" y1="58" x2="178" y2="58" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.42s"/>
+    <line class="sk" x1="147" y1="45" x2="173" y2="71" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.44s"/>
+    <line class="sk" x1="173" y1="45" x2="147" y2="71" stroke-width=".6" style="--dash:36; stroke-dasharray:36; animation-delay:.46s"/>
     <!-- 3 portals -->
-    <path class="sk" d="M108,170 Q108,145 120,145 Q132,145 132,170" stroke-width="1.2" style="--sd:70; stroke-dasharray:70; animation-delay:.5s"/>
-    <path class="sk" d="M148,170 Q148,138 160,138 Q172,138 172,170" stroke-width="1.4" style="--sd:80; stroke-dasharray:80; animation-delay:.52s"/>
-    <path class="sk" d="M188,170 Q188,145 200,145 Q212,145 212,170" stroke-width="1.2" style="--sd:70; stroke-dasharray:70; animation-delay:.54s"/>
+    <path class="sk" d="M108,170 Q108,145 120,145 Q132,145 132,170" stroke-width="1.2" style="--dash:70; stroke-dasharray:70; animation-delay:.5s"/>
+    <path class="sk" d="M148,170 Q148,138 160,138 Q172,138 172,170" stroke-width="1.4" style="--dash:80; stroke-dasharray:80; animation-delay:.52s"/>
+    <path class="sk" d="M188,170 Q188,145 200,145 Q212,145 212,170" stroke-width="1.2" style="--dash:70; stroke-dasharray:70; animation-delay:.54s"/>
     <!-- campanile right -->
     <rect class="sk-fill" x="252" y="30" width="20" height="140"/>
-    <rect class="sk" x="252" y="30" width="20" height="140" stroke-width="1.6" style="--sd:320; stroke-dasharray:320; animation-delay:.6s"/>
-    <rect class="sk" x="254" y="45" width="16" height="18" stroke-width=".8" style="--sd:68; stroke-dasharray:68; animation-delay:.65s"/>
-    <rect class="sk" x="254" y="75" width="16" height="18" stroke-width=".8" style="--sd:68; stroke-dasharray:68; animation-delay:.68s"/>
+    <rect class="sk" x="252" y="30" width="20" height="140" stroke-width="1.6" style="--dash:320; stroke-dasharray:320; animation-delay:.6s"/>
+    <rect class="sk" x="254" y="45" width="16" height="18" stroke-width=".8" style="--dash:68; stroke-dasharray:68; animation-delay:.65s"/>
+    <rect class="sk" x="254" y="75" width="16" height="18" stroke-width=".8" style="--dash:68; stroke-dasharray:68; animation-delay:.68s"/>
     <!-- Duomo Nuovo ghost fragment — unfinished wall right -->
     <line class="sk" x1="275" y1="170" x2="310" y2="170" stroke-width=".6" style="stroke-dasharray:6 4; animation-delay:.75s; opacity:.4"/>
     <line class="sk" x1="310" y1="170" x2="310" y2="60"  stroke-width=".6" style="stroke-dasharray:6 4; animation-delay:.78s; opacity:.4"/>
@@ -924,19 +880,10 @@ body {
 
 </div>
 
-<div class="outro">
-  <h2>Siena — Stadtführer</h2>
-  <p class="outro-sub">5 Stationen · 1 Route · Eine Stadt</p>
-  <div class="outro-stops">
-    <span>① Porta Camollia</span>
-    <span>② Piazza Salimbeni</span>
-    <span>③ Piazza del Campo</span>
-    <span>④ Palazzo Pubblico</span>
-    <span>⑤ Duomo di Siena</span>
-  </div>
-  <div class="outro-rule"></div>
-  <p class="outro-quote"><em>„Cor magis tibi Sena pandit"</em></p>
-  <p class="outro-quote-small">„Siena öffnet dir sein Herz noch weiter als dieses Tor."</p>
+
+  <h2>La città è un libro.<br>Leggerla è già viaggiare.</h2>
+  <p>Siena ist mehr als eine Ansammlung von Bauwerken — sie ist ein kohärentes räumliches Narrativ, das man liest, indem man sie geht.</p>
+  <div class="outro-dot"></div>
 </div>
 
 <!-- MODAL -->
@@ -953,41 +900,37 @@ body {
 </div>
 
 <script>
+/* ── ALL STATE VARS – declared first with var to avoid TDZ errors ── */
+var activeStop    = -1;
+var mapShown      = false;
+var trackActive   = false;
+var leafMap       = null;
+var gpsMarker     = null;
+var watchId       = null;
+var toastTmr      = null;
+var galIdx        = 0;
+var galLen        = 0;
+var snapTimer     = null;
+var snapping      = false;
+
+
 /* ═══════════════════════════════
    LOADER
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 (function(){
-  var el = document.getElementById('loader');
-  if (!el) return;
-  var hidden = false;
-  function hide() {
-    if (hidden) return;
-    hidden = true;
-    // Fade out
-    el.style.transition = 'opacity 0.6s ease';
-    el.style.opacity = '0';
-    el.style.pointerEvents = 'none';
-    // Hard remove after fade
-    setTimeout(function(){ el.style.display = 'none'; }, 700);
+  const el = document.getElementById('loader');
+  function dismiss(){
+    el.classList.add('out');
+    el.addEventListener('transitionend', () => el.classList.add('gone'), { once:true });
+    setTimeout(() => el.classList.add('gone'), 1500); // fallback
   }
-  // Fire as early as possible — DOMContentLoaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(hide, 1800); });
-  } else {
-    setTimeout(hide, 1800);
-  }
-  // Hard fallback: 3s no matter what
-  setTimeout(hide, 3000);
-  // User interaction fallback
-  document.addEventListener('touchstart', hide, { once: true, passive: true });
-  document.addEventListener('click',      hide, { once: true });
-  // Scroll fallback
-  window.addEventListener('scroll', hide, { once: true, passive: true });
+  setTimeout(dismiss, 2100);
+  setTimeout(() => { el.classList.add('out'); el.classList.add('gone'); }, 5000); // hard fallback
 })();
 
 /* ═══════════════════════════════
    DATA
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 const STOPS = [
   {
     num:"01", name:"Porta Camollia", sub:"Das Stadttor des Willkommens",
@@ -1058,7 +1001,7 @@ const STOPS = [
 
 /* ═══════════════════════════════
    ROUTE
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 const TRAIL = [
   "M148,92",
   "M148,92 Q205,118 262,158",
@@ -1086,7 +1029,7 @@ const VB = [
 
 /* ═══════════════════════════════
    HELPERS
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 function lerpVB(a, b, t){
   const pa = a.trim().split(/\s+/).map(Number);
   const pb = b.trim().split(/\s+/).map(Number);
@@ -1095,19 +1038,17 @@ function lerpVB(a, b, t){
 
 /* ═══════════════════════════════
    STATE
-   ═══════════════════════════════ */
-let activeStop    = -1;
-let mapIntroShown = false;
+═══════════════════════════════ */
 
 /* ═══════════════════════════════
    MAP INTRO ANIMATION
    Called once when map first appears.
    Zooms out from Stop-0 zoom level to give a "reveal" feel,
    then settles back to Stop-0 view.
-    ═══════════════════════════════ */
+═══════════════════════════════ */
 function triggerMapIntro(){
-  if (mapIntroShown) return;
-  mapIntroShown = true;
+  if (mapShown) return;
+  mapShown = true;
 
   const map = document.getElementById('map-panel');
   const svg = document.getElementById('mapSvg');
@@ -1147,7 +1088,7 @@ function animVBfromCurrent(target, dur){
 
 /* ═══════════════════════════════
    TRAVELLER DOT
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 function moveTraveller(globalT){
   const trav = document.getElementById('traveller');
   trav.style.opacity = '1';
@@ -1166,7 +1107,7 @@ function moveTraveller(globalT){
 
 /* ═══════════════════════════════
    ACTIVATE STOP
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 function activate(idx, globalT){
   /* Always move traveller */
   if (globalT !== undefined) moveTraveller(globalT);
@@ -1181,8 +1122,6 @@ function activate(idx, globalT){
 
   /* Heavy updates only on stop change */
   if (idx === activeStop) {
-    /* Keep sketch panel visible while scrolling within a stop */
-    document.getElementById('sketch-panel').classList.add('open');
     /* ViewBox follows traveller continuously */
     if (globalT !== undefined){
       const frac = globalT - Math.floor(globalT);
@@ -1221,18 +1160,17 @@ function activate(idx, globalT){
   document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
   document.getElementById('drawer').classList.add('open');
 
-  /* Sketch panel — re-animate only on stop change (already inside the guard) */
+  /* Sketch panel */
   const panel = document.getElementById('sketch-panel');
   panel.classList.add('open');
+  // Hide all sketches, then show + re-animate the active one
   document.querySelectorAll('.sketch-svg').forEach(s => s.classList.remove('active'));
   const sk = document.getElementById('sk' + idx);
   if (sk) {
-    /* Clone to reset any previous animation state */
+    // Re-trigger CSS animations by cloning
     const fresh = sk.cloneNode(true);
     sk.parentNode.replaceChild(fresh, sk);
     fresh.classList.add('active');
-    /* Slight delay so the element is rendered before we measure lengths */
-    requestAnimationFrame(() => requestAnimationFrame(() => animateSketch(fresh)));
   }
 
   /* ViewBox — animate from current to this stop's view */
@@ -1258,7 +1196,7 @@ function resetMap(){
 
 /* ═══════════════════════════════
    SCROLL ENGINE
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 function onScroll(){
   const sy       = window.scrollY;
   const dh       = document.documentElement.scrollHeight - innerHeight;
@@ -1267,6 +1205,12 @@ function onScroll(){
 
   /* Progress bar */
   document.getElementById('progress-bar').style.width = (sy / dh * 100) + '%';
+
+  /* Track button visibility */
+  updateTrackBtn(sy, introH);
+
+  /* In track mode, don't drive the SVG map from scroll */
+  if (trackActive) return;
 
   /* Map visibility */
   if (sy < introH - 60){
@@ -1278,11 +1222,8 @@ function onScroll(){
   }
 
   /* First time past intro → trigger map intro animation */
-  if (!mapIntroShown) triggerMapIntro();
-  else map.classList.add('map-intro');
-
-  /* Track button visibility */
-  updateTrackBtn(sy, introH);
+  if (!mapShown) triggerMapIntro();
+  else map.classList.add('map-intro'); // keep visible on subsequent scrolls back
 
   /* Compute globalT from scroll position within #journey */
   const journey    = document.getElementById('journey');
@@ -1300,28 +1241,8 @@ window.addEventListener('scroll', onScroll, { passive:true });
 onScroll();
 
 /* ═══════════════════════════════
-   DOT TAP — scroll to stop, or open
-   modal directly if GPS within 25 m
-    ═══════════════════════════════ */
-function dotTap(idx) {
-  /* If Smart-Track is active AND user is within 25m, open modal directly */
-  if (trackActive) {
-    const dot  = document.getElementById('gps-dot');
-    const cx   = parseFloat(dot.getAttribute('cx'));
-    const cy   = parseFloat(dot.getAttribute('cy'));
-    const stop = [{x:148,y:92},{x:262,y:158},{x:350,y:290},{x:350,y:330},{x:340,y:448}][idx];
-    /* SVG pixel distance (rough proximity check) */
-    const pxDist = Math.sqrt((cx-stop.x)*(cx-stop.x) + (cy-stop.y)*(cy-stop.y));
-    /* ~3 SVG units ≈ 25m in our coordinate space */
-    if (pxDist < 10) { openModal(idx); return; }
-  }
-  /* Always: scroll to that stop section */
-  scrollToStop(idx);
-}
-
-/* ═══════════════════════════════
    SCROLL TO STOP
-   ═══════════════════════════════ */
+═══════════════════════════════ */
 function scrollToStop(idx){
   const journey    = document.getElementById('journey');
   const journeyTop = journey.getBoundingClientRect().top + window.scrollY;
@@ -1329,9 +1250,248 @@ function scrollToStop(idx){
 }
 
 /* ═══════════════════════════════
-   MODAL
-   ═══════════════════════════════ */
-let galIdx = 0, galLen = 0;
+   SCROLL SNAP (JS-based)
+   Snaps to nearest stop 350ms after
+   scroll ends, with 600ms dwell pause
+═══════════════════════════════ */
+(function(){
+  var snapTimer = null;
+  var snapping  = false;
+  window.addEventListener('scroll', function(){
+    if (snapping) return;
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(function(){
+      if (trackActive) return; // no snap in track mode
+      var sy     = window.scrollY;
+      var introH = document.querySelector('.intro').offsetHeight;
+      if (sy < introH) return;
+      var journey    = document.getElementById('journey');
+      var journeyTop = journey.getBoundingClientRect().top + sy;
+      var scrollInJ  = sy - journeyTop;
+      if (scrollInJ < 0) return;
+      var nearestIdx = Math.round(scrollInJ / innerHeight);
+      nearestIdx = Math.max(0, Math.min(4, nearestIdx));
+      var targetY = journeyTop + nearestIdx * innerHeight;
+      if (Math.abs(sy - targetY) < 8) return;
+      snapping = true;
+      setTimeout(function(){
+        window.scrollTo({ top: targetY, behavior:'smooth' });
+        setTimeout(function(){ snapping = false; }, 900);
+      }, 600);
+    }, 350);
+  }, { passive:true });
+})();
+
+/* ═══════════════════════════════
+   TRACK BUTTON VISIBILITY
+═══════════════════════════════ */
+function updateTrackBtn(sy, introH){
+  const btn = document.getElementById('track-btn');
+  if (sy > introH - 60) btn.classList.add('show');
+  else btn.classList.remove('show');
+}
+
+/* ═══════════════════════════════
+   SMART-TRACK + LEAFLET
+═══════════════════════════════ */
+
+/* Real GPS coords of each stop */
+const STOP_COORDS = [
+  [43.3237, 11.3318], /* 0 Porta Camollia */
+  [43.3192, 11.3302], /* 1 Piazza Salimbeni */
+  [43.3183, 11.3319], /* 2 Piazza del Campo */
+  [43.3180, 11.3317], /* 3 Palazzo Pubblico */
+  [43.3168, 11.3302], /* 4 Duomo di Siena */
+];
+
+/* Route as real GPS polyline */
+const ROUTE_LATLNGS = [
+  [43.3237, 11.3318],
+  [43.3220, 11.3308],
+  [43.3205, 11.3303],
+  [43.3192, 11.3302],
+  [43.3189, 11.3308],
+  [43.3186, 11.3315],
+  [43.3183, 11.3319],
+  [43.3181, 11.3318],
+  [43.3180, 11.3317],
+  [43.3172, 11.3308],
+  [43.3168, 11.3302],
+];
+
+/* GPS state vars declared at top */
+
+function showToast(msg, dur){
+  const t = document.getElementById('track-toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTmr);
+  if (dur) toastTmr = setTimeout(()=>t.classList.remove('show'), dur);
+}
+function hideToast(){ clearTimeout(toastTmr); document.getElementById('track-toast').classList.remove('show'); }
+
+/* Initialize Leaflet map once */
+function initLeaflet(){
+  if (leafMap) return;
+  const el = document.getElementById('leaflet-map');
+  leafMap = L.map(el, {
+    center: [43.3183, 11.3319],
+    zoom: 15,
+    zoomControl: false,
+    attributionControl: false,
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(leafMap);
+
+  /* Route polyline — terra color */
+  _routeLine = L.polyline(ROUTE_LATLNGS, {
+    color: '#C4622D', weight: 4, opacity: .85,
+    dashArray: null,
+  }).addTo(leafMap);
+
+  /* Stop markers */
+  STOP_COORDS.forEach((ll, i) => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:22px;height:22px;border-radius:50%;
+        background:#C4622D;border:2.5px solid white;
+        box-shadow:0 1px 6px rgba(0,0,0,.35);
+        display:flex;align-items:center;justify-content:center;
+        font-size:8px;font-family:Jost,sans-serif;font-weight:500;
+        color:white;line-height:1;
+      ">${i+1}</div>`,
+      iconSize: [22, 22], iconAnchor: [11, 11],
+    });
+    const m = L.marker(ll, { icon }).addTo(leafMap);
+    m.on('click', () => openModal(i));
+    _stopMarkers.push(m);
+  });
+
+  /* GPS marker (Google-Maps style) */
+  const gpsIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:20px;height:20px;border-radius:50%;
+      background:#2563eb;border:3px solid white;
+      box-shadow:0 0 0 4px rgba(37,99,235,.25), 0 2px 8px rgba(0,0,0,.3);
+    "></div>`,
+    iconSize: [20, 20], iconAnchor: [10, 10],
+  });
+  gpsMarker = L.marker([0, 0], { icon: gpsIcon, zIndexOffset: 1000 });
+}
+
+/* Haversine distance */
+function haversine(a, b){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(b[0]-a[0]), dLon=toRad(b[1]-a[1]);
+  const s = Math.sin(dLat/2)*Math.sin(dLat/2)
+          + Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))
+          * Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+
+function nearestStop(lat, lon){
+  let best=0, bestD=Infinity;
+  STOP_COORDS.forEach((c,i)=>{ const d=haversine([lat,lon],c); if(d<bestD){bestD=d;best=i;} });
+  return { idx:best, dist:Math.round(bestD) };
+}
+
+function onGeoSuccess(pos){
+  const lat=pos.coords.latitude, lon=pos.coords.longitude;
+  const btn = document.getElementById('track-btn');
+  btn.classList.remove('acquiring'); btn.classList.add('active');
+  document.getElementById('track-label').textContent = 'Smart-Track AN';
+
+  /* Move GPS marker on Leaflet map */
+  gpsMarker.setLatLng([lat, lon]);
+  if (!leafMap.hasLayer(gpsMarker)) gpsMarker.addTo(leafMap);
+  leafMap.panTo([lat, lon], { animate:true, duration:0.6 });
+
+  /* Show nearest stop info */
+  const { idx, dist } = nearestStop(lat, lon);
+  if (dist < 800){
+    showToast(`Nächste Station: ${STOPS[idx].name} · ${dist} m`, 4000);
+    /* If within 25m, highlight that stop */
+    if (dist < 25) {
+      document.getElementById('drawer-num').textContent  = `Station 0${idx+1}`;
+      document.getElementById('drawer-name').textContent = STOPS[idx].name;
+      document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
+      document.getElementById('drawer').classList.add('open');
+    }
+  } else {
+    showToast(`${(dist/1000).toFixed(1)} km von Siena entfernt`, 4000);
+  }
+}
+
+function onGeoError(err){
+  const msgs = {1:'Standortzugriff verweigert',2:'Standort nicht verfügbar',3:'Zeitüberschreitung'};
+  showToast(msgs[err.code]||'GPS-Fehler', 3500);
+  stopTrack();
+}
+
+function stopTrack(){
+  trackActive = false;
+  if (watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+  const btn=document.getElementById('track-btn');
+  btn.classList.remove('active','acquiring');
+  document.getElementById('track-label').textContent='Smart-Track';
+  /* Switch back to SVG map */
+  document.getElementById('map-panel').classList.remove('track-mode');
+  hideToast();
+}
+
+function toggleTrack(){
+  if (trackActive){ stopTrack(); return; }
+  if (!('geolocation' in navigator)){ showToast('GPS nicht verfügbar',3000); return; }
+
+  trackActive = true;
+  const btn=document.getElementById('track-btn');
+  btn.classList.add('acquiring');
+  document.getElementById('track-label').textContent='Orten…';
+  showToast('Standort wird ermittelt…');
+
+  /* Switch to Leaflet map */
+  initLeaflet();
+  document.getElementById('map-panel').classList.add('track-mode');
+  setTimeout(()=>leafMap.invalidateSize(), 50);
+
+  navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {enableHighAccuracy:true,timeout:10000,maximumAge:0});
+  watchId = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, {enableHighAccuracy:true,timeout:15000,maximumAge:5000});
+}
+
+/* Wire track btn visibility into scroll engine */
+const _origOnScroll = onScroll;
+window.removeEventListener('scroll', _origOnScroll);
+window.addEventListener('scroll', function(){
+  const sy=window.scrollY, introH=document.querySelector('.intro').offsetHeight;
+  updateTrackBtn(sy, introH);
+  _origOnScroll();
+}, {passive:true});
+updateTrackBtn(window.scrollY, document.querySelector('.intro').offsetHeight);
+
+/* Swipe gallery */
+(function(){
+  const modal = document.getElementById('modal');
+  let tx=0,ty=0,drag=false;
+  modal.addEventListener('touchstart',e=>{
+    const g=e.target.closest('.modal-gallery'); if(!g)return;
+    tx=e.touches[0].clientX; ty=e.touches[0].clientY; drag=false;
+  },{passive:true});
+  modal.addEventListener('touchmove',e=>{
+    const g=e.target.closest('.modal-gallery'); if(!g)return;
+    const dx=e.touches[0].clientX-tx, dy=e.touches[0].clientY-ty;
+    if(!drag&&Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>8) drag=true;
+  },{passive:true});
+  modal.addEventListener('touchend',e=>{
+    const g=e.target.closest('.modal-gallery'); if(!g||!drag)return;
+    const dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>40) galStep(dx<0?1:-1);
+    drag=false;
+  },{passive:true});
+})();
+
+/* galIdx/galLen at top */
 
 function openModal(idx){
   const s = (idx >= 0 && idx < 5) ? STOPS[idx] : STOPS[activeStop];
@@ -1380,248 +1540,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') galStep(1);
   if (e.key === 'ArrowLeft')  galStep(-1);
 });
-
-/* ═══════════════════════════════
-   SKETCH ANIMATION  (JS-driven)
-   CSS custom props in @keyframes
-   don't work reliably on mobile.
-    ═══════════════════════════════ */
-function animateSketch(svgEl) {
-  if (!svgEl) return;
-
-  const strokes = Array.from(svgEl.querySelectorAll('.sk'));
-  const fills   = Array.from(svgEl.querySelectorAll('.sk-fill, .sk-label'));
-
-  /* Reset everything to invisible */
-  strokes.forEach(el => {
-    el.style.opacity          = '0';
-    el.style.transition       = 'none';
-    let len = 300;
-    try { if (el.getTotalLength) len = Math.ceil(el.getTotalLength()); } catch(e){}
-    /* Also respect inline stroke-dasharray if set */
-    const inline = el.style.strokeDasharray || el.getAttribute('stroke-dasharray');
-    if (inline) len = parseFloat(inline) || len;
-    el.style.strokeDasharray  = len;
-    el.style.strokeDashoffset = len;
-  });
-  fills.forEach(el => { el.style.opacity = '0'; el.style.transition = 'none'; });
-
-  const STAGGER  = 52;   /* ms between each stroke starting */
-  const DURATION = 460;  /* ms each stroke takes to draw */
-  const ease = t => t < .5 ? 2*t*t : -1+(4-2*t)*t;
-
-  strokes.forEach((el, i) => {
-    const dashLen = parseFloat(el.style.strokeDasharray) || 300;
-    let startTime = null;
-
-    setTimeout(() => {
-      requestAnimationFrame(function draw(now) {
-        if (!startTime) startTime = now;
-        const t = Math.min((now - startTime) / DURATION, 1);
-        el.style.opacity          = Math.min(t * 6, 0.85).toString();
-        el.style.strokeDashoffset = (dashLen * (1 - ease(t))).toString();
-        if (t < 1) requestAnimationFrame(draw);
-      });
-    }, i * STAGGER);
-  });
-
-  /* Reveal fills + labels after all strokes started */
-  setTimeout(() => {
-    fills.forEach(el => {
-      el.style.transition = 'opacity .5s ease';
-      el.style.opacity    = el.classList.contains('sk-label') ? '0.85' : '1';
-    });
-  }, strokes.length * STAGGER + 150);
-}
-
-
-  const gallery = document.getElementById('modal');
-
-  let touchStartX = 0, touchStartY = 0, isDragging = false;
-
-  // We attach to the gallery element inside modal after it's opened
-  // Use event delegation on the modal itself
-  gallery.addEventListener('touchstart', e => {
-    const g = e.target.closest('.modal-gallery');
-    if (!g) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    isDragging = false;
-    g.classList.remove('dragging');
-  }, { passive: true });
-
-  gallery.addEventListener('touchmove', e => {
-    const g = e.target.closest('.modal-gallery');
-    if (!g) return;
-    const dx = e.touches[0].clientX - touchStartX;
-    const dy = e.touches[0].clientY - touchStartY;
-    if (!isDragging && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
-      isDragging = true;
-      g.classList.add('dragging');
-    }
-  }, { passive: true });
-
-  gallery.addEventListener('touchend', e => {
-    const g = e.target.closest('.modal-gallery');
-    if (!g || !isDragging) return;
-    g.classList.remove('dragging');
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 40) {
-      galStep(dx < 0 ? 1 : -1);
-    }
-    isDragging = false;
-  }, { passive: true });
-
-
-/* ═══════════════════════════════
-   SMART-TRACK
-   Uses browser Geolocation API to
-   find the nearest stop and activate it.
-   The 5 stops are mapped to real Siena
-   GPS coordinates.
-    ═══════════════════════════════ */
-
-/* Real GPS coordinates for each stop */
-const STOP_COORDS = [
-  { lat: 43.3237, lon: 11.3318 }, /* 0 Porta Camollia */
-  { lat: 43.3192, lon: 11.3302 }, /* 1 Piazza Salimbeni */
-  { lat: 43.3183, lon: 11.3319 }, /* 2 Piazza del Campo */
-  { lat: 43.3180, lon: 11.3317 }, /* 3 Palazzo Pubblico */
-  { lat: 43.3168, lon: 11.3302 }, /* 4 Duomo di Siena */
-];
-
-let trackActive    = false;
-let trackWatchId   = null;
-let toastTimer     = null;
-
-function haversine(a, b) {
-  /* Returns distance in metres between two {lat,lon} points */
-  const R  = 6371000;
-  const phi1 = a.lat * Math.PI / 180;
-  const phi2 = b.lat * Math.PI / 180;
-  const dphi = (b.lat - a.lat) * Math.PI / 180;
-  const dlam = (b.lon - a.lon) * Math.PI / 180;
-  const x  = Math.sin(dphi/2)*Math.sin(dphi/2) + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dlam/2)*Math.sin(dlam/2);
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-}
-
-function nearestStop(lat, lon) {
-  let best = 0, bestDist = Infinity;
-  STOP_COORDS.forEach((c, i) => {
-    const d = haversine({lat, lon}, c);
-    if (d < bestDist) { bestDist = d; best = i; }
-  });
-  return { idx: best, dist: Math.round(bestDist) };
-}
-
-function showToast(msg, duration) {
-  const t = document.getElementById('track-toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  if (duration) toastTimer = setTimeout(() => t.classList.remove('show'), duration);
-}
-function hideToast() {
-  clearTimeout(toastTimer);
-  document.getElementById('track-toast').classList.remove('show');
-}
-
-function onGeoSuccess(pos) {
-  const lat = pos.coords.latitude, lon = pos.coords.longitude;
-
-  const btn = document.getElementById('track-btn');
-  btn.classList.remove('acquiring');
-  btn.classList.add('active');
-  document.getElementById('track-label').textContent = 'Smart-Track AN';
-
-  /* Map the real GPS position onto SVG coordinates.
-     Siena bounding box (approx):
-     lat 43.310 – 43.332  →  SVG y  448 – 92  (north=top)
-     lon 11.318 – 11.345  →  SVG x  148 – 470
-  */
-  const LAT_N = 43.332, LAT_S = 43.310;
-  const LON_W = 11.318, LON_E = 11.345;
-  const SVG_X_W = 148, SVG_X_E = 470;
-  const SVG_Y_N = 92,  SVG_Y_S = 448;
-  const svgX = SVG_X_W + (lon - LON_W) / (LON_E - LON_W) * (SVG_X_E - SVG_X_W);
-  const svgY = SVG_Y_N + (LAT_N - lat) / (LAT_N - LAT_S) * (SVG_Y_S - SVG_Y_N);
-
-  const dot  = document.getElementById('gps-dot');
-  const ring = document.getElementById('gps-dot-ring');
-  dot.setAttribute('cx',  svgX); dot.setAttribute('cy',  svgY); dot.style.opacity = '1';
-  ring.setAttribute('cx', svgX); ring.setAttribute('cy', svgY); ring.style.opacity = '1';
-
-  const { idx, dist } = nearestStop(lat, lon);
-
-  if (dist < 800) {
-    scrollToStop(idx);
-    showToast(`Nächste Station: ${STOPS[idx].name} · ${dist} m`, 3500);
-  } else {
-    showToast(`Du bist ${(dist/1000).toFixed(1)} km von Siena entfernt`, 4000);
-  }
-}
-
-function onGeoError(err) {
-  const btn = document.getElementById('track-btn');
-  btn.classList.remove('active', 'acquiring');
-  document.getElementById('track-label').textContent = 'Smart-Track';
-  trackActive = false;
-  trackWatchId = null;
-  document.getElementById('gps-dot').style.opacity = '0';
-  document.getElementById('gps-dot-ring').style.opacity = '0';
-
-  const msgs = {
-    1: 'Standortzugriff verweigert',
-    2: 'Standort nicht verfügbar',
-    3: 'Zeitüberschreitung'
-  };
-  showToast(msgs[err.code] || 'GPS-Fehler', 3500);
-}
-
-function toggleTrack() {
-  const btn = document.getElementById('track-btn');
-
-  if (trackActive) {
-    /* Turn OFF */
-    trackActive = false;
-    if (trackWatchId !== null) {
-      navigator.geolocation.clearWatch(trackWatchId);
-      trackWatchId = null;
-    }
-    btn.classList.remove('active', 'acquiring');
-    document.getElementById('track-label').textContent = 'Smart-Track';
-    hideToast();
-    return;
-  }
-
-  /* Turn ON */
-  if (!('geolocation' in navigator)) {
-    showToast('GPS nicht verfügbar', 3000);
-    return;
-  }
-
-  trackActive = true;
-  btn.classList.add('acquiring');
-  document.getElementById('track-label').textContent = 'Orten…';
-  showToast('Standort wird ermittelt…');
-
-  /* One-shot first fix for immediate response */
-  navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {
-    enableHighAccuracy: true, timeout: 10000, maximumAge: 0
-  });
-
-  /* Then watch continuously for movement */
-  trackWatchId = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, {
-    enableHighAccuracy: true, timeout: 15000, maximumAge: 5000
-  });
-}
-
-/* Show/hide track button based on scroll position */
-function updateTrackBtn(sy, introH) {
-  const btn = document.getElementById('track-btn');
-  if (sy > introH - 60) btn.classList.add('show');
-  else btn.classList.remove('show');
-}
 </script>
 </body>
 </html>
