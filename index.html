@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Siena — Una Passeggiata</title>
+<title>Siena — Stadtführer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231A1209'/%3E%3Cg stroke='%23C4622D' stroke-width='2.5' stroke-linecap='round' fill='none'%3E%3Cpath d='M50 85 Q34 79 14 64'/%3E%3Cpath d='M50 85 Q30 74 16 55'/%3E%3Cpath d='M50 85 Q32 68 22 46'/%3E%3Cpath d='M50 85 Q38 62 34 38'/%3E%3Cpath d='M50 85 Q46 60 44 34'/%3E%3Cpath d='M50 85 Q54 60 56 34'/%3E%3Cpath d='M50 85 Q62 62 66 38'/%3E%3Cpath d='M50 85 Q68 68 78 46'/%3E%3Cpath d='M50 85 Q70 74 84 55'/%3E%3Cpath d='M50 85 Q66 79 86 64'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Bebas+Neue&family=Jost:wght@300;400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -538,7 +539,6 @@ body {
   <div class="intro-bg"></div>
   <span class="intro-kicker">Ein Stadtführer · Toscana · Italia</span>
   <h1>Sie<em>na</em></h1>
-  <p class="intro-sub">Eine Passeggiata durch die mittelalterliche Stadt —<br>Schritt für Schritt, Stein für Stein.</p>
   <div class="scroll-cue">
     <span>Scrollen</span>
     <div class="scroll-line"></div>
@@ -1398,12 +1398,14 @@ function nearestStop(lat, lon){
 }
 
 function onGeoSuccess(pos){
+  if (!trackActive) return; /* may have been turned off meanwhile */
   const lat=pos.coords.latitude, lon=pos.coords.longitude;
   const btn = document.getElementById('track-btn');
   btn.classList.remove('acquiring'); btn.classList.add('active');
   document.getElementById('track-label').textContent = 'Smart-Track AN';
 
-  /* Move GPS marker on Leaflet map */
+  /* Move GPS marker — guard: leafMap/gpsMarker must exist */
+  if (!leafMap || !gpsMarker) return;
   gpsMarker.setLatLng([lat, lon]);
   if (!leafMap.hasLayer(gpsMarker)) gpsMarker.addTo(leafMap);
   leafMap.panTo([lat, lon], { animate:true, duration:0.6 });
@@ -1456,8 +1458,18 @@ function toggleTrack(){
   document.getElementById('map-panel').classList.add('track-mode');
   setTimeout(()=>leafMap.invalidateSize(), 50);
 
-  navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {enableHighAccuracy:true,timeout:10000,maximumAge:0});
-  watchId = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, {enableHighAccuracy:true,timeout:15000,maximumAge:5000});
+  /* Phase 1: fast low-accuracy fix so map moves immediately */
+  navigator.geolocation.getCurrentPosition(onGeoSuccess, function(){}, {
+    enableHighAccuracy: false,
+    timeout: 3000,
+    maximumAge: 30000   /* accept cached position up to 30s old */
+  });
+  /* Phase 2: high-accuracy watch for precise tracking */
+  watchId = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, {
+    enableHighAccuracy: true,
+    timeout: 20000,
+    maximumAge: 5000
+  });
 }
 
 /* Wire track btn visibility into scroll engine */
@@ -1540,6 +1552,103 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') galStep(1);
   if (e.key === 'ArrowLeft')  galStep(-1);
 });
+
+/* ══════════════════════════════════════════
+   DEBUG MODE  (?debug in URL)
+   Simulates a GPS walk through the route.
+   Activate: add ?debug to the URL.
+   Use the floating debug panel to control.
+══════════════════════════════════════════ */
+(function(){
+  if (!/[?&]debug/.test(location.search)) return;
+
+  /* Waypoints along the real route with small random offsets to feel alive */
+  const SIM_ROUTE = [
+    [43.3237, 11.3318], /* Porta Camollia */
+    [43.3228, 11.3314],
+    [43.3218, 11.3308],
+    [43.3205, 11.3303],
+    [43.3192, 11.3302], /* Piazza Salimbeni */
+    [43.3189, 11.3308],
+    [43.3186, 11.3315],
+    [43.3183, 11.3319], /* Il Campo */
+    [43.3181, 11.3318],
+    [43.3180, 11.3317], /* Palazzo Pubblico */
+    [43.3175, 11.3312],
+    [43.3168, 11.3302], /* Duomo */
+  ];
+
+  let simIdx = 0;
+  let simTimer = null;
+  let simRunning = false;
+
+  /* Inject debug UI */
+  const panel = document.createElement('div');
+  panel.style.cssText = `
+    position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
+    z-index:9999; background:#1A1209; border-radius:2rem;
+    display:flex; align-items:center; gap:.5rem; padding:.5rem .9rem;
+    font-family:'Jost',sans-serif; font-size:.6rem; letter-spacing:.12em;
+    color:#E8D5B0; text-transform:uppercase; box-shadow:0 4px 20px rgba(0,0,0,.4);
+    white-space:nowrap;
+  `;
+  panel.innerHTML = `
+    <span style="color:#C49A3C;">⬤</span>
+    <span>Debug-GPS</span>
+    <button id="dbg-start" style="background:#C4622D;color:white;border:none;border-radius:1rem;padding:.3rem .75rem;font-family:inherit;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;">▶ Start</button>
+    <button id="dbg-step"  style="background:rgba(255,255,255,.1);color:#E8D5B0;border:1px solid rgba(255,255,255,.2);border-radius:1rem;padding:.3rem .75rem;font-family:inherit;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;">Schritt</button>
+    <button id="dbg-reset" style="background:rgba(255,255,255,.1);color:#E8D5B0;border:1px solid rgba(255,255,255,.2);border-radius:1rem;padding:.3rem .75rem;font-family:inherit;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;">↺</button>
+    <span id="dbg-pos" style="color:#9A8878;"></span>
+  `;
+  document.body.appendChild(panel);
+
+  function simFakePos(lat, lon) {
+    /* Fake a GeolocationPosition-like object */
+    onGeoSuccess({ coords: { latitude: lat, longitude: lon, accuracy: 10 } });
+    const pt = SIM_ROUTE[simIdx];
+    document.getElementById('dbg-pos').textContent =
+      `${simIdx+1}/${SIM_ROUTE.length} · ${pt[0].toFixed(4)}, ${pt[1].toFixed(4)}`;
+  }
+
+  function simStep() {
+    if (simIdx >= SIM_ROUTE.length) { simIdx = 0; }
+    const [lat, lon] = SIM_ROUTE[simIdx];
+    /* Activate track mode if not already on */
+    if (!trackActive) {
+      trackActive = true;
+      initLeaflet();
+      document.getElementById('map-panel').classList.add('track-mode');
+      setTimeout(() => leafMap.invalidateSize(), 50);
+      const btn = document.getElementById('track-btn');
+      btn.classList.remove('acquiring'); btn.classList.add('active');
+      document.getElementById('track-label').textContent = 'Smart-Track AN';
+    }
+    simFakePos(lat, lon);
+    simIdx++;
+  }
+
+  function simStartAuto() {
+    if (simRunning) {
+      clearInterval(simTimer); simRunning = false;
+      document.getElementById('dbg-start').textContent = '▶ Start';
+      return;
+    }
+    simRunning = true;
+    document.getElementById('dbg-start').textContent = '⏸ Pause';
+    simStep(); /* immediate first step */
+    simTimer = setInterval(simStep, 2500); /* move every 2.5s */
+  }
+
+  document.getElementById('dbg-start').onclick = simStartAuto;
+  document.getElementById('dbg-step').onclick  = simStep;
+  document.getElementById('dbg-reset').onclick = function(){
+    clearInterval(simTimer); simRunning = false;
+    simIdx = 0;
+    document.getElementById('dbg-start').textContent = '▶ Start';
+    document.getElementById('dbg-pos').textContent = 'Zurückgesetzt';
+  };
+
+})();
 </script>
 </body>
 </html>
