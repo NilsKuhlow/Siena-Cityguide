@@ -210,7 +210,7 @@ body {
   -webkit-tap-highlight-color:transparent;
   user-select:none;
 }
-#track-btn.show  { opacity:1; pointer-events:all; }
+#track-btn.show  { opacity:1; pointer-events:auto; }
 #track-btn.active {
   background:var(--ink); border-color:var(--ink); color:var(--white);
 }
@@ -400,19 +400,22 @@ body {
   background:#e8e8e8;
   z-index:5;
 
-  /* start state: slightly scaled up + invisible */
+  /* start state: invisible + clipped (unroll from top) */
   opacity:0;
-  transform:scale(1.04);
+  transform:scale(1.03);
+  clip-path:inset(0 0 100% 0);
   pointer-events:none;
   transition:
-    opacity   .7s ease,
-    transform .7s cubic-bezier(.22,1,.36,1);
+    opacity   .55s ease,
+    transform .95s cubic-bezier(.22,1,.36,1),
+    clip-path 1.05s cubic-bezier(.22,1,.36,1);
 }
 #map-panel.map-intro {
-  /* first reveal: fade + scale down */
+  /* cinematic reveal: fade + scale + unroll top-to-bottom */
   opacity:1;
   transform:scale(1);
-  pointer-events:all;
+  clip-path:inset(0 0 0% 0);
+  pointer-events:auto;
 }
 #map-panel svg { width:100%; height:100%; }
 
@@ -448,7 +451,7 @@ body {
 #drawer.open {
   transform:translateY(0);
   opacity:1;
-  pointer-events:all;
+  pointer-events:auto;
 }
 .drawer-inner {
   background:var(--white);
@@ -543,7 +546,7 @@ body {
   background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
   z-index:300; opacity:0; pointer-events:none; transition:opacity .35s;
 }
-#backdrop.open { opacity:1; pointer-events:all; }
+#backdrop.open { opacity:1; pointer-events:auto; }
 
 #modal {
   position:fixed; top:0; left:0; right:0; bottom:0;
@@ -699,6 +702,78 @@ body {
   color:var(--muted); line-height:1.75;
   border-top:1px solid var(--border); padding-top:1.4rem;
   max-width:56ch;
+}
+
+/* ═══════════════════════════════════════════
+   SCAN LINE  — terra-cotta stripe sweeping
+   down the screen during the map reveal
+═══════════════════════════════════════════ */
+#scan-line {
+  position:fixed; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,
+    transparent       0%,
+    var(--terra)     22%,
+    rgba(255,255,255,.6) 50%,
+    var(--terra)     78%,
+    transparent     100%);
+  z-index:15; pointer-events:none;
+  opacity:0; transform:translateY(-2px);
+}
+#scan-line.sweep { animation:scanSweep 1.05s cubic-bezier(.38,0,.58,1) forwards; }
+@keyframes scanSweep {
+  0%   { transform:translateY(-2px); opacity:0; }
+  4%   { opacity:1; }
+  86%  { opacity:.8; }
+  100% { transform:translateY(calc(var(--map-h) + 2px)); opacity:0; }
+}
+
+/* ═══════════════════════════════════════════
+   LANGUAGE SWITCH  (fixed bottom-right)
+═══════════════════════════════════════════ */
+#lang-switch {
+  position:fixed; bottom:1.4rem; right:1.6rem; z-index:150;
+  display:flex; align-items:center; gap:.3rem;
+  opacity:0; pointer-events:none;
+  transition:opacity .5s;
+}
+#lang-switch.show { opacity:1; pointer-events:auto; }
+.lang-btn {
+  font-family:'Inter',sans-serif; font-weight:500;
+  font-size:.46rem; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(255,255,255,.28); background:none; border:none;
+  cursor:pointer; padding:.22rem .28rem;
+  transition:color .2s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+.lang-btn.active  { color:var(--terra); }
+.lang-btn:hover   { color:rgba(255,255,255,.72); }
+.lang-sep {
+  color:rgba(255,255,255,.14); font-size:.38rem;
+  pointer-events:none; user-select:none;
+}
+/* light context  — when map / white-bg is showing */
+#lang-switch.light .lang-btn        { color:rgba(0,0,0,.22); }
+#lang-switch.light .lang-btn.active { color:var(--terra); }
+#lang-switch.light .lang-btn:hover  { color:rgba(0,0,0,.62); }
+#lang-switch.light .lang-sep        { color:rgba(0,0,0,.14); }
+
+/* ═══════════════════════════════════════════
+   MOBILE: impressum grid stacks vertically
+═══════════════════════════════════════════ */
+@media (max-width:600px){
+  .impressum-grid { grid-template-columns:1fr; }
+}
+
+/* ═══════════════════════════════════════════
+   REDUCED MOTION  — disable all animations
+═══════════════════════════════════════════ */
+@media (prefers-reduced-motion:reduce){
+  *, *::before, *::after {
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
 }
 </style>
 </head>
@@ -1059,11 +1134,11 @@ body {
     <text class="sk-label" x="160" y="197" text-anchor="middle">Duomo di Siena · ca. 1215</text>
 
     <!-- GPS position dot (track mode) — hidden by default -->
-    <g id="gps-group" opacity="0" style="transition:opacity .4s">
-      <circle id="gps-acc"   cx="0" cy="0" r="22" fill="rgba(37,99,235,.12)" stroke="rgba(37,99,235,.25)" stroke-width="1"/>
-      <circle id="gps-halo"  cx="0" cy="0" r="10" fill="rgba(37,99,235,.2)"/>
-      <circle id="gps-outer" cx="0" cy="0" r="8"  fill="white"    filter="drop-shadow(0 1px 3px rgba(0,0,0,.4))"/>
-      <circle id="gps-inner" cx="0" cy="0" r="5"  fill="#2563eb"/>
+    <g opacity="0" style="transition:opacity .4s">
+      <circle cx="0" cy="0" r="22" fill="rgba(37,99,235,.12)" stroke="rgba(37,99,235,.25)" stroke-width="1"/>
+      <circle cx="0" cy="0" r="10" fill="rgba(37,99,235,.2)"/>
+      <circle cx="0" cy="0" r="8"  fill="white"    filter="drop-shadow(0 1px 3px rgba(0,0,0,.4))"/>
+      <circle cx="0" cy="0" r="5"  fill="#2563eb"/>
     </g>
   </svg>
 
@@ -1153,9 +1228,10 @@ body {
   </svg>
 
 
-</div>
+</div><!-- /sketch-panel -->
 
-
+<!-- OUTRO -->
+<div class="outro">
   <h2>La città è un libro.<br>Leggerla è già viaggiare.</h2>
   <p>Siena ist mehr als eine Ansammlung von Bauwerken — sie ist ein kohärentes räumliches Narrativ, das man liest, indem man sie geht.</p>
   <div class="outro-dot"></div>
@@ -1166,27 +1242,39 @@ body {
   <p class="impressum-heading">Impressum</p>
   <div class="impressum-grid">
     <dl class="impressum-block">
-      <dt>Verantwortlich</dt>
+      <dt data-i18n="imp_responsible">Verantwortlich</dt>
       <dd>Nils Kuhlow</dd>
     </dl>
     <dl class="impressum-block">
-      <dt>Institution</dt>
+      <dt data-i18n="imp_institution">Institution</dt>
       <dd>Hochschule Wismar<br>Fakultät Gestaltung · Architektur</dd>
     </dl>
     <dl class="impressum-block">
-      <dt>Kontakt</dt>
+      <dt data-i18n="imp_contact">Kontakt</dt>
       <dd><a href="mailto:Nils@Kuhlow.eu">Nils@Kuhlow.eu</a></dd>
     </dl>
     <dl class="impressum-block">
-      <dt>Lehrveranstaltung</dt>
+      <dt data-i18n="imp_course">Lehrveranstaltung</dt>
       <dd>WPM Stadt + Raum<br>SoSe 2026</dd>
     </dl>
   </div>
-  <p class="impressum-note">
+  <p class="impressum-note" data-i18n="imp_note">
     Diese Website ist ein nicht-kommerzielles Hochschulprojekt und dient ausschließlich akademischen Zwecken.
     Alle verwendeten Inhalte sind urheberrechtlich geschützt. Eine kommerzielle Nutzung ist nicht gestattet.
   </p>
 </section>
+
+<!-- SCAN LINE — terra-cotta stripe during map reveal -->
+<div id="scan-line" aria-hidden="true"></div>
+
+<!-- LANGUAGE SWITCH -->
+<nav id="lang-switch" aria-label="Sprache wählen / Language">
+  <button class="lang-btn active" data-lang="de" aria-label="Deutsch">DE</button>
+  <span class="lang-sep" aria-hidden="true">·</span>
+  <button class="lang-btn" data-lang="it" aria-label="Italiano">IT</button>
+  <span class="lang-sep" aria-hidden="true">·</span>
+  <button class="lang-btn" data-lang="en" aria-label="English">EN</button>
+</nav>
 
 <!-- MODAL -->
 <div id="backdrop" onclick="closeModal()"></div>
@@ -1226,6 +1314,8 @@ var snapping      = false;
   }
   setTimeout(dismiss, 3400);
   setTimeout(() => { el.classList.add('out'); el.classList.add('gone'); }, 7000); // hard fallback
+  /* Lang switch appears after loader fades out */
+  setTimeout(() => document.getElementById('lang-switch').classList.add('show'), 4300);
 })();
 
 /* ═══════════════════════════════
@@ -1409,17 +1499,23 @@ function triggerMapIntro(){
   const map = document.getElementById('map-panel');
   const svg = document.getElementById('mapSvg');
 
+  /* ── Fire the scan-line sweep ── */
+  const sl = document.getElementById('scan-line');
+  sl.classList.remove('sweep');
+  void sl.offsetWidth;          /* force reflow to restart animation */
+  sl.classList.add('sweep');
+
   /* Start from a tighter zoom (closer into stop 0) */
   const zoomIn = "444 44 160 120";  /* zoomed on stop 0 */
   const target  = VB[0];             /* normal stop-0 view */
 
   svg.setAttribute('viewBox', zoomIn);
-  map.classList.add('map-intro'); /* trigger CSS fade+scale transition */
+  map.classList.add('map-intro'); /* trigger CSS clip-path + scale + fade */
 
-  /* After CSS transition settles (700ms), animate viewBox to normal */
+  /* After clip-path reveal settles (~1.05s), animate viewBox to normal */
   setTimeout(() => {
     animVB(zoomIn, target, 900);
-  }, 200);
+  }, 400);
 }
 
 /* Animate viewBox from → to over `dur` ms */
@@ -1476,6 +1572,10 @@ function activate(idx, globalT){
     d.setAttribute('r', i === idx ? '9' : '7');
   }
 
+  /* Ensure drawer + sketch are open whenever activate() is called (defensive guard) */
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('sketch-panel').classList.add('open');
+
   /* Heavy updates only on stop change */
   if (idx === activeStop) {
     /* ViewBox follows traveller continuously */
@@ -1511,7 +1611,7 @@ function activate(idx, globalT){
   ctr.classList.add('show');
 
   /* Drawer */
-  document.getElementById('drawer-num').textContent  = `Station 0${idx+1}`;
+  document.getElementById('drawer-num').textContent  = (LANG[currentLang]||LANG.de).modal_station + ' 0' + (idx+1);
   document.getElementById('drawer-name').textContent = STOPS[idx].name;
   document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
   document.getElementById('drawer').classList.add('open');
@@ -1554,19 +1654,36 @@ function resetMap(){
    SCROLL ENGINE
 ═══════════════════════════════ */
 function onScroll(){
-  const sy       = window.scrollY;
-  const dh       = document.documentElement.scrollHeight - innerHeight;
-  const introH   = document.querySelector('.intro').offsetHeight;
-  const map      = document.getElementById('map-panel');
+  const sy      = window.scrollY;
+  const dh      = document.documentElement.scrollHeight - innerHeight;
+  const introEl = document.querySelector('.intro');
+  const introH  = introEl.offsetHeight;
+  const map     = document.getElementById('map-panel');
 
   /* Progress bar */
   document.getElementById('progress-bar').style.width = (sy / dh * 100) + '%';
+
+  /* Lang-switch: switch to light style when map is showing */
+  document.getElementById('lang-switch')
+    .classList.toggle('light', sy > introH * 0.82);
 
   /* Track button visibility */
   updateTrackBtn(sy, introH);
 
   /* In track mode, don't drive the SVG map from scroll */
   if (trackActive) return;
+
+  /* ── Intro parallax exit ──
+     Fade + subtle upward drift as user scrolls out of intro.
+     Starts at 45 % of intro height, nearly gone by 90 %.        */
+  if (sy < introH) {
+    const prog = Math.max(0, (sy - introH * 0.45) / (introH * 0.50));
+    introEl.style.opacity   = Math.max(0, 1 - prog * 1.1).toFixed(3);
+    introEl.style.transform = `translateY(${-(sy * 0.07)}px)`;
+  } else {
+    introEl.style.opacity   = '0';
+    introEl.style.transform = '';
+  }
 
   /* Map visibility */
   if (sy < introH - 60){
@@ -1587,15 +1704,27 @@ function onScroll(){
   const scrollInJ  = sy - journeyTop;
   const totalH     = 8 * innerHeight;
   /* 0 = start of stop 0, 4.999 = end of stop 4 */
-  /* Past all stops → reveal outro + impressum by collapsing fixed UI panels */
+  /* Past all stops → reveal outro + impressum by collapsing fixed UI panels.
+     Reset activeStop so scrolling back re-triggers a full activate() call. */
   if (scrollInJ >= totalH) {
     document.getElementById('drawer').classList.remove('open');
     document.getElementById('sketch-panel').classList.remove('open');
+    activeStop = -1;
     return;
   }
 
-  const globalT    = Math.max(0, Math.min(7.999, (scrollInJ / totalH) * 8));
-  const stopIdx    = Math.floor(globalT);
+  const globalT = Math.max(0, Math.min(7.999, (scrollInJ / totalH) * 8));
+  const rawIdx  = Math.floor(globalT);
+  const frac    = globalT - rawIdx;
+
+  /* Hysteresis: hold on current stop for the first / last 8 % of each segment.
+     Prevents the dot from flickering when momentum-scroll oscillates near a boundary. */
+  let stopIdx = rawIdx;
+  if (activeStop >= 0) {
+    if (rawIdx === activeStop + 1 && frac < 0.08) stopIdx = activeStop; // just crossed fwd
+    if (rawIdx === activeStop - 1 && frac > 0.92) stopIdx = activeStop; // just crossed back
+  }
+  stopIdx = Math.max(0, Math.min(7, stopIdx));
 
   activate(stopIdx, globalT);
 }
@@ -1613,34 +1742,258 @@ function scrollToStop(idx){
 }
 
 /* ═══════════════════════════════
+   BUG-FIX: dotTap was missing
+   Clicking a map dot scrolls to that stop
+═══════════════════════════════ */
+function dotTap(idx){ scrollToStop(idx); }
+
+/* ═══════════════════════════════
+   LANGUAGE SWITCH
+═══════════════════════════════ */
+const LANG = {
+  de: {
+    loaderSub: 'Urbane Analyse · SoSe 2026',
+    kicker:    'Ein Stadtführer · Toscana · Italia',
+    subHtml:   'Zwischen Macht, Glaube und Raum —<br>eine urbane Analyse der Stadtstruktur',
+    scrollCue: 'Scrollen',
+    drawerBtn: 'Mehr erfahren →',
+    outroH2:   'La città è un libro.<br>Leggerla è già viaggiare.',
+    outroP:    'Siena ist mehr als eine Ansammlung von Bauwerken — sie ist ein kohärentes räumliches Narrativ, das man liest, indem man sie geht.',
+    impressum:      'Impressum',
+    imp_responsible: 'Verantwortlich',
+    imp_institution: 'Institution',
+    imp_contact:     'Kontakt',
+    imp_course:      'Lehrveranstaltung',
+    imp_note:        'Diese Website ist ein nicht-kommerzielles Hochschulprojekt und dient ausschließlich akademischen Zwecken. Alle verwendeten Inhalte sind urheberrechtlich geschützt. Eine kommerzielle Nutzung ist nicht gestattet.',
+    modal_station: 'Station',
+    modal_of:      'von',
+    stopSubs:  [
+      'Die älteste Bank der Welt',
+      'Die älteste Quelle Sienas',
+      'Taufe unter dem Dom',
+      'Dom & Sakralraum',
+      'Das Herz der Stadt',
+      'Architektur als politisches Manifest',
+      'Renaissance in der Stadtrepublik',
+      'Der vergessene Rücken des Campo'
+    ],
+    stopFacts: [
+      ['Gegründet',      'Stil',           'Funktion',    'Terzo'],
+      ['Ersterwähnung',  'Stil',           'Funktion',    'Terzo'],
+      ['Erbaut',         'Taufbecken',     'Stil',        'Besonderheit'],
+      ['Baubeginn',      'Fassade',        'Boden',       'Unvollendet'],
+      ['Fläche',         'Entstehung',     'UNESCO',      'Event'],
+      ['Erbaut',         'Torre del Mangia','Fresko',     'Stil'],
+      ['Erbaut',         'Stil',           'Heute',       'Schatz'],
+      ['Lage',           'Funktion',       'Terzo',       'Blick']
+    ]
+  },
+  it: {
+    loaderSub: 'Analisi Urbana · SoSe 2026',
+    kicker:    'Una guida della città · Toscana · Italia',
+    subHtml:   "Tra potere, fede e spazio —<br>un'analisi urbana della struttura della città",
+    scrollCue: 'Scorri',
+    drawerBtn: 'Scopri →',
+    outroH2:   'La città è un libro.<br>Leggerla è già viaggiare.',
+    outroP:    "Siena è più di un insieme di edifici — è una narrazione spaziale coerente che si legge camminandola.",
+    impressum:      'Note legali',
+    imp_responsible: 'Responsabile',
+    imp_institution: 'Istituzione',
+    imp_contact:     'Contatto',
+    imp_course:      'Corso',
+    imp_note:        "Questo sito web è un progetto universitario non commerciale e serve esclusivamente a scopi accademici. Tutti i contenuti sono protetti da copyright. Non è consentito alcun utilizzo commerciale.",
+    modal_station: 'Stazione',
+    modal_of:      'di',
+    stopSubs:  [
+      'La banca più antica del mondo',
+      'La fonte più antica di Siena',
+      'Il battistero sotto il Duomo',
+      'Il Duomo e lo spazio sacro',
+      'Il cuore della città',
+      "L'architettura come manifesto politico",
+      'Il Rinascimento nella Repubblica',
+      'Il retro dimenticato del Campo'
+    ],
+    stopFacts: [
+      ['Fondata',            'Stile',           'Funzione',    'Terzo'],
+      ['Prima menzione',     'Stile',           'Funzione',    'Terzo'],
+      ['Costruito',          'Fonte battesimale','Stile',      'Particolarità'],
+      ['Inizio costruzione', 'Facciata',        'Pavimento',   'Incompiuto'],
+      ['Superficie',         'Origine',         'UNESCO',      'Evento'],
+      ['Costruito',          'Torre del Mangia','Affresco',    'Stile'],
+      ['Costruito',          'Stile',           'Oggi',        'Tesoro'],
+      ['Posizione',          'Funzione',        'Terzo',       'Vista']
+    ]
+  },
+  en: {
+    loaderSub: 'Urban Analysis · SoSe 2026',
+    kicker:    'A city guide · Tuscany · Italy',
+    subHtml:   'Between power, faith and space —<br>an urban analysis of the city structure',
+    scrollCue: 'Scroll',
+    drawerBtn: 'Learn more →',
+    outroH2:   'The city is a book.<br>To read it is already to travel.',
+    outroP:    "Siena is more than a collection of buildings — it is a coherent spatial narrative, read by walking through it.",
+    impressum:      'Imprint',
+    imp_responsible: 'Responsible',
+    imp_institution: 'Institution',
+    imp_contact:     'Contact',
+    imp_course:      'Course',
+    imp_note:        'This website is a non-commercial university project for academic purposes only. All content is copyright protected. Commercial use is not permitted.',
+    modal_station: 'Station',
+    modal_of:      'of',
+    stopSubs:  [
+      "The world's oldest bank",
+      'The oldest fountain of Siena',
+      'The baptistery beneath the Cathedral',
+      'The Cathedral & sacred space',
+      'The heart of the city',
+      'Architecture as political manifesto',
+      'Renaissance in the Republic',
+      'The forgotten back of the Campo'
+    ],
+    stopFacts: [
+      ['Founded',            'Style',           'Function',    'Terzo'],
+      ['First mention',      'Style',           'Function',    'Terzo'],
+      ['Built',              'Baptismal font',  'Style',       'Particularity'],
+      ['Construction start', 'Facade',          'Floor',       'Unfinished'],
+      ['Area',               'Origin',          'UNESCO',      'Event'],
+      ['Built',              'Torre del Mangia','Fresco',      'Style'],
+      ['Built',              'Style',           'Today',       'Treasure'],
+      ['Location',           'Function',        'Terzo',       'View']
+    ]
+  }
+};
+
+let currentLang = 'de';
+
+function setLang(lang){
+  const t = LANG[lang];
+  if (!t) return;                   /* unknown lang → bail out */
+  currentLang = lang;
+
+  /* ── Button active states ── */
+  document.querySelectorAll('.lang-btn').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-lang') === lang);
+  });
+
+  /* ── Helper: set text/html safely ── */
+  function setText(sel, val, html){
+    var el = document.querySelector(sel);
+    if (!el) return;
+    if (html) el.innerHTML = val; else el.textContent = val;
+  }
+
+  /* ── Intro ── */
+  setText('.loader-sub',    t.loaderSub);
+  setText('.intro-kicker',  t.kicker);
+  setText('.intro-sub',     t.subHtml, true);
+  setText('.scroll-cue span', t.scrollCue);
+
+  /* ── Journey ── */
+  setText('.drawer-btn', t.drawerBtn);
+
+  /* ── Outro ── */
+  setText('.outro h2',  t.outroH2, true);
+  setText('.outro p',   t.outroP);
+
+  /* ── Impressum ── */
+  setText('.impressum-heading', t.impressum);
+
+  /* All data-i18n elements (dt labels, note, …) */
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+
+  /* ── Patch stop subtitles in data array ── */
+  for (var i = 0; i < t.stopSubs.length; i++){
+    if (STOPS[i]) STOPS[i].sub = t.stopSubs[i];
+  }
+
+  /* ── Patch fact labels in data array ── */
+  if (t.stopFacts) {
+    for (var i = 0; i < STOPS.length; i++) {
+      if (t.stopFacts[i]) {
+        for (var j = 0; j < STOPS[i].facts.length; j++) {
+          if (t.stopFacts[i][j] !== undefined) STOPS[i].facts[j].l = t.stopFacts[i][j];
+        }
+      }
+    }
+  }
+
+  /* ── Live-update visible drawer ── */
+  var ds = document.getElementById('drawer-sub');
+  if (ds && activeStop >= 0) ds.textContent = t.stopSubs[activeStop];
+
+  /* ── Live-update drawer station label ── */
+  var dn = document.getElementById('drawer-num');
+  if (dn && activeStop >= 0) dn.textContent = t.modal_station + ' 0' + (activeStop + 1);
+
+  /* ── Live-update open modal if visible ── */
+  var modal = document.getElementById('modal');
+  if (modal && modal.classList.contains('open') && activeStop >= 0) {
+    var mn = modal.querySelector('.modal-num');
+    if (mn) mn.textContent = t.modal_station + ' ' + STOPS[activeStop].num + ' ' + t.modal_of + ' 08';
+    var msub = modal.querySelector('.modal-sub');
+    if (msub) msub.textContent = STOPS[activeStop].sub;
+    var facts = modal.querySelectorAll('.fact');
+    var sf = STOPS[activeStop].facts;
+    for (var k = 0; k < facts.length; k++) {
+      if (sf[k]) facts[k].querySelector('.fact-lbl').textContent = sf[k].l;
+    }
+  }
+}
+
+/* ── Wire lang buttons via addEventListener (reliable cross-browser) ── */
+document.querySelectorAll('.lang-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){ setLang(btn.getAttribute('data-lang')); });
+});
+
+/* ═══════════════════════════════
    SCROLL SNAP (JS-based)
-   Snaps to nearest stop 350ms after
-   scroll ends, with 600ms dwell pause
+   – Fires 550 ms after scroll ends
+   – Skips if user is still scrolling
+   – Skips past midpoint of last stop
+     so outro/impressum is reachable
 ═══════════════════════════════ */
 (function(){
   var snapTimer = null;
   var snapping  = false;
   window.addEventListener('scroll', function(){
     if (snapping) return;
+    /* Capture position at the moment the scroll event fires */
+    var capturedSy = window.scrollY;
     clearTimeout(snapTimer);
     snapTimer = setTimeout(function(){
-      if (trackActive) return; // no snap in track mode
-      var sy     = window.scrollY;
+      if (trackActive) return;
+      var sy = window.scrollY;
+
+      /* Still scrolling? Position changed since timer was armed → skip */
+      if (Math.abs(sy - capturedSy) > 10) return;
+
       var introH = document.querySelector('.intro').offsetHeight;
       if (sy < introH) return;
+
       var journey    = document.getElementById('journey');
       var journeyTop = journey.getBoundingClientRect().top + sy;
       var scrollInJ  = sy - journeyTop;
       if (scrollInJ < 0) return;
-      if (scrollInJ >= 8 * innerHeight) return; // in outro/impressum zone – no snap
+
+      /* Past the midpoint of the last stop → user is heading to outro/impressum.
+         Do NOT snap back to stop 7. */
+      if (scrollInJ >= 7.5 * innerHeight) return;
+
       var nearestIdx = Math.round(scrollInJ / innerHeight);
       nearestIdx = Math.max(0, Math.min(7, nearestIdx));
       var targetY = journeyTop + nearestIdx * innerHeight;
-      if (Math.abs(sy - targetY) < 8) return;
+
+      /* Already close enough – skip to avoid tiny jitter snaps */
+      if (Math.abs(sy - targetY) < 40) return;
+
       snapping = true;
       window.scrollTo({ top: targetY, behavior:'smooth' });
-      setTimeout(function(){ snapping = false; }, 900);
-    }, 400);
+      setTimeout(function(){ snapping = false; }, 800);
+    }, 550);
   }, { passive:true });
 })();
 
@@ -1739,7 +2092,7 @@ function onGeoSuccess(pos){
   if (dist < 800){
     showToast('Nächste Station: '+STOPS[idx].name+' · '+dist+' m', 4000);
     if (dist < 25) {
-      document.getElementById('drawer-num').textContent  = 'Station 0'+(idx+1);
+      document.getElementById('drawer-num').textContent  = (LANG[currentLang]||LANG.de).modal_station + ' 0'+(idx+1);
       document.getElementById('drawer-name').textContent = STOPS[idx].name;
       document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
       document.getElementById('drawer').classList.add('open');
@@ -1814,9 +2167,11 @@ function toggleTrack(){
 /* galIdx/galLen at top */
 
 function openModal(idx){
-  const s = (idx >= 0 && idx < 5) ? STOPS[idx] : STOPS[activeStop];
+  const s = (idx >= 0 && idx < 8) ? STOPS[idx] : STOPS[activeStop];
   if (!s) return;
   galIdx = 0; galLen = s.slides.length;
+
+  const t = LANG[currentLang] || LANG.de;
 
   document.getElementById('galSlides').innerHTML = s.slides.map(sl => `
     <div class="gallery-slide">
@@ -1829,7 +2184,7 @@ function openModal(idx){
     `<div class="gal-pip${i===0?' on':''}" onclick="galTo(${i})"></div>`).join('');
 
   document.getElementById('modalBody').innerHTML = `
-    <div class="modal-num">Station ${s.num} von 05</div>
+    <div class="modal-num">${t.modal_station} ${s.num} ${t.modal_of} 08</div>
     <div class="modal-title">${s.name}</div>
     <span class="modal-sub">${s.sub}</span>
     <div class="modal-rule"></div>
