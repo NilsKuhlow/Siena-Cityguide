@@ -2214,8 +2214,6 @@ function openModal(idx){
   document.getElementById('galSlides').innerHTML = s.slides.map(sl => `
     <div class="gallery-slide">
       <div class="slide-bg" style="background:${sl.bg}"></div>
-      <div class="slide-icon">${sl.icon}</div>
-      <div class="slide-cap">${sl.cap}</div>
     </div>`).join('');
 
   document.getElementById('galNav').innerHTML = s.slides.map((_,i) =>
