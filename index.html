@@ -427,7 +427,7 @@ body {
   height:100vh;
   background:var(--ink);
   display:flex; flex-direction:column; justify-content:flex-end;
-  padding:0 7vw 16vh;
+  padding:0 7vw clamp(7rem, 18vh, 13rem);
   position:relative; overflow:hidden;
   z-index:10;
   will-change:transform, opacity;
@@ -511,7 +511,7 @@ body {
   font-family:'Inter',sans-serif; font-weight:400;
   font-size:.54rem; letter-spacing:.18em; text-transform:uppercase;
   color:rgba(255,255,255,.62);
-  position:absolute; bottom:2.6rem; left:7vw;
+  margin-top:1.8rem;
   opacity:0; transform:translateY(10px);
   animation:introUp .7s cubic-bezier(.22,1,.36,1) forwards;
   animation-delay:4.2s;
