@@ -1957,10 +1957,10 @@ function toggleTrack(){
 
   function applyVB(x, y, w, h){
     var aspect = _vb0 ? _vb0.h / _vb0.w : 0.75;
-    w = clamp(MIN_VB_W, MAX_VB_W, w);
-    h = clamp(MIN_VB_W * aspect, MAX_VB_W * aspect, h);
-    x = clamp(0, Math.max(0, CANVAS_W - w), x);
-    y = clamp(0, Math.max(0, CANVAS_H - h), y);
+    w = clamp(w, MIN_VB_W, MAX_VB_W);
+    h = clamp(h, MIN_VB_W * aspect, MAX_VB_W * aspect);
+    x = clamp(x, 0, Math.max(0, CANVAS_W - w));
+    y = clamp(y, 0, Math.max(0, CANVAS_H - h));
     svg.setAttribute('viewBox',
       x.toFixed(1)+' '+y.toFixed(1)+' '+w.toFixed(1)+' '+h.toFixed(1));
   }
