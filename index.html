@@ -292,6 +292,98 @@ body {
 #map-touch-layer.active { display:block; }
 
 /* ═══════════════════════════════════════════
+   MAP INFO CARD  (track-mode tap-on-stop)
+   Bottom sheet that slides up when the user
+   taps a stop dot on the map.
+═══════════════════════════════════════════ */
+#map-info-card {
+  position:fixed;
+  bottom:0; left:0; right:0;
+  z-index:55;                        /* above drawer(50) + touch-layer(48) */
+  background:var(--white);
+  border-top:2px solid var(--ink);
+  border-radius:1rem 1rem 0 0;
+  box-shadow:0 -6px 40px rgba(0,0,0,.14);
+  transform:translateY(100%);
+  transition:transform .42s cubic-bezier(.22,1,.36,1);
+  pointer-events:none;
+  will-change:transform;
+}
+#map-info-card.show {
+  transform:translateY(0);
+  pointer-events:auto;
+}
+.mic-handle {
+  width:36px; height:4px;
+  background:var(--border);
+  border-radius:2px;
+  margin:.65rem auto 0;
+}
+.mic-body {
+  padding:.75rem 6vw max(1.4rem,env(safe-area-inset-bottom));
+}
+.mic-header {
+  display:flex; align-items:flex-start;
+  justify-content:space-between; gap:1rem;
+  margin-bottom:.65rem;
+}
+.mic-meta { flex:1; min-width:0; }
+.mic-num {
+  font-family:'Inter',sans-serif; font-weight:600;
+  font-size:.58rem; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--terra); margin-bottom:.25rem;
+}
+.mic-name {
+  font-family:'Cormorant Garamond',serif; font-weight:600;
+  font-size:1.4rem; line-height:1.1; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.mic-sub {
+  font-family:'Cormorant Garamond',serif; font-style:italic;
+  font-size:.82rem; color:var(--muted); margin-top:.1rem;
+}
+.mic-close {
+  width:30px; height:30px; border-radius:50%;
+  background:var(--sand); border:none; color:var(--ink);
+  font-size:.8rem; cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  margin-top:.1rem;
+}
+.mic-divider {
+  height:1px; background:var(--border);
+  margin:.55rem 0 .65rem;
+}
+.mic-facts {
+  display:flex; gap:.5rem; flex-wrap:wrap;
+  margin-bottom:.8rem;
+}
+.mic-fact {
+  background:var(--sand); border-radius:.35rem;
+  padding:.32rem .65rem;
+}
+.mic-fact-lbl {
+  font-family:'Inter',sans-serif;
+  font-size:.46rem; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); line-height:1; margin-bottom:.18rem;
+}
+.mic-fact-val {
+  font-family:'Inter',sans-serif;
+  font-size:.68rem; font-weight:600; color:var(--ink); line-height:1;
+}
+.mic-cta {
+  width:100%; padding:.78rem 1.5rem;
+  background:var(--ink); color:var(--white);
+  border:none; border-bottom:2px solid var(--terra);
+  border-radius:2rem;
+  font-family:'Inter',sans-serif; font-size:.6rem;
+  font-weight:500; letter-spacing:.1em; text-transform:uppercase;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:opacity .15s;
+}
+.mic-cta:active { opacity:.82; }
+
+/* ═══════════════════════════════════════════
    NAV CRUMB  (top bar — always in DOM, two
    independently animated halves)
 ═══════════════════════════════════════════ */
@@ -918,6 +1010,24 @@ body {
 
 <!-- Touch-capture overlay — only active in track mode (touch-action:none prevents scroll) -->
 <div id="map-touch-layer"></div>
+
+<!-- Map Info Card — slides up when user taps a stop dot in track mode -->
+<div id="map-info-card" role="dialog" aria-modal="true" aria-label="Stationsinformation">
+  <div class="mic-handle"></div>
+  <div class="mic-body">
+    <div class="mic-header">
+      <div class="mic-meta">
+        <div class="mic-num" id="mic-num">Station 01</div>
+        <div class="mic-name" id="mic-name">—</div>
+        <div class="mic-sub"  id="mic-sub">—</div>
+      </div>
+      <button class="mic-close" onclick="closeInfoCard()" aria-label="Schließen">✕</button>
+    </div>
+    <div class="mic-divider"></div>
+    <div class="mic-facts" id="mic-facts"></div>
+    <button class="mic-cta" id="mic-cta">Mehr erfahren →</button>
+  </div>
+</div>
 
 <!-- JOURNEY (scroll space only — no visible content) -->
 <div id="journey"></div>
@@ -1867,6 +1977,7 @@ function onGeoError(err){
 
 function returnToGps(){
   stopMapInertia();    /* kill momentum before animating back */
+  closeInfoCard();     /* dismiss stop card if open */
   mapUserPanned = false;
   document.getElementById('return-btn').classList.remove('show');
   if (lastGpsLat === null) return;
@@ -1886,8 +1997,9 @@ function stopTrack(){
   document.getElementById('track-label').textContent='Smart-Track';
   /* Hide GPS dot */
   var g=document.getElementById('gps-group'); if(g) g.style.opacity='0';
-  /* Reset map-pan state + hide touch overlay */
+  /* Reset map-pan state + hide touch overlay + close card */
   mapUserPanned = false;
+  closeInfoCard();
   document.getElementById('return-btn').classList.remove('show');
   document.getElementById('map-touch-layer').classList.remove('active');
   hideToast();
@@ -1924,6 +2036,69 @@ function toggleTrack(){
    Single-finger: pan. Two-finger: pinch-zoom.
    Moving away from GPS position shows "Standort" return button.
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   MAP INFO CARD
+   Opens when user taps a stop dot in track mode.
+   Zooms map to the stop and slides up a compact bottom-sheet.
+═══════════════════════════════════════════════════════════════ */
+var _infoCardStop = -1;
+
+function openInfoCard(idx){
+  var s = STOPS[idx];
+  if (!s) return;
+  _infoCardStop = idx;
+
+  var t = LANG[currentLang] || LANG.de;
+  document.getElementById('mic-num').textContent =
+    (t.modal_station || 'Station') + ' ' + s.num;
+  document.getElementById('mic-name').textContent = s.name;
+  document.getElementById('mic-sub').textContent  = s.sub;
+
+  /* Show first 2 facts as chips */
+  document.getElementById('mic-facts').innerHTML = s.facts.slice(0, 2).map(function(f){
+    return '<div class="mic-fact">' +
+           '<div class="mic-fact-lbl">' + f.l + '</div>' +
+           '<div class="mic-fact-val">' + f.v + '</div>' +
+           '</div>';
+  }).join('');
+
+  /* CTA wires to full modal for this stop */
+  document.getElementById('mic-cta').onclick = function(){ openModal(idx); };
+
+  document.getElementById('map-info-card').classList.add('show');
+
+  /* Show return-btn — map will move away from GPS position */
+  document.getElementById('return-btn').classList.add('show');
+
+  /* Animate map to center on the tapped stop (keep current zoom level) */
+  stopMapInertia();
+  var wp = WAYPOINTS[idx];
+  var svgEl = document.getElementById('mapSvg');
+  var vb = svgEl.viewBox.baseVal;
+  var w = vb.width, h = vb.height;
+  var tx = Math.max(0, Math.min(1000 - w, wp.x - w / 2));
+  var ty = Math.max(0, Math.min(750  - h, wp.y - h / 2));
+  animVBfromCurrent(tx + ' ' + ty + ' ' + w + ' ' + h, 420);
+}
+
+function closeInfoCard(){
+  document.getElementById('map-info-card').classList.remove('show');
+  _infoCardStop = -1;
+}
+
+/* Find the stop index whose dot is within TAP_R SVG-units of (sx, sy).
+   Returns -1 if none close enough. Uses WAYPOINTS which match dot CX/CY. */
+var TAP_R_SQ = 38 * 38;   /* tap radius: 38 SVG units (~40 px at default zoom) */
+function findNearestStop(sx, sy){
+  var best = -1, bestD = TAP_R_SQ;
+  for (var i = 0; i < WAYPOINTS.length; i++){
+    var dx = WAYPOINTS[i].x - sx, dy = WAYPOINTS[i].y - sy;
+    var d2 = dx * dx + dy * dy;
+    if (d2 < bestD){ bestD = d2; best = i; }
+  }
+  return best;
+}
+
 /* ── stopMapInertia: exposed so returnToGps() can kill momentum before animating ── */
 var stopMapInertia = function(){};
 
@@ -2026,6 +2201,7 @@ var stopMapInertia = function(){};
     e.preventDefault();      /* iOS Safari: must call before any touchmove */
     cancelAnimVB();          /* kill GPS glide animation */
     stopMapInertia();        /* kill any running momentum */
+    closeInfoCard();         /* dismiss card on new gesture */
     mapUserPanned = true;
     _didMove   = false;
     _velX = _velY = 0;
@@ -2128,9 +2304,24 @@ var stopMapInertia = function(){};
     } else if (e.touches.length === 0){
       /* All fingers lifted */
       if (!_didMove){
-        /* Pure tap → restore GPS auto-follow */
-        mapUserPanned = false;
-        document.getElementById('return-btn').classList.remove('show');
+        /* ── TAP: check whether a stop dot was tapped ── */
+        var didOpenCard = false;
+        if (_t0){
+          var rect2 = layer.getBoundingClientRect();
+          var vb2   = getVB();
+          var svgX  = vb2.x + (_t0.clientX - rect2.left) / rect2.width  * vb2.w;
+          var svgY  = vb2.y + (_t0.clientY - rect2.top)  / rect2.height * vb2.h;
+          var hitIdx = findNearestStop(svgX, svgY);
+          if (hitIdx >= 0){
+            openInfoCard(hitIdx);   /* zoom to stop + show info card */
+            didOpenCard = true;
+          }
+        }
+        if (!didOpenCard){
+          /* Plain tap on empty map → restore GPS auto-follow */
+          mapUserPanned = false;
+          document.getElementById('return-btn').classList.remove('show');
+        }
       } else if (_t0 && !_t1){
         /* Pan gesture ended → launch momentum */
         startInertia();
