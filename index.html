@@ -771,6 +771,25 @@ body {
 }
 #modal.open { transform:translateX(0); }
 
+/* ── Drag handle — visual swipe-down indicator ── */
+.modal-handle-zone {
+  width:100%; padding:.7rem 0 0;
+  display:flex; justify-content:center; align-items:center;
+  flex-shrink:0;
+  touch-action:none;          /* we own this touch — no browser scroll */
+  -webkit-user-select:none; user-select:none;
+  cursor:grab;
+}
+.modal-handle-zone:active { cursor:grabbing; }
+.modal-drag-handle {
+  width:40px; height:4px;
+  background:rgba(0,0,0,.15); border-radius:2px;
+}
+/* Spring-back animation after an aborted swipe */
+#modal.swipe-snap {
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1) !important;
+}
+
 .modal-close {
   position:absolute; top:1rem; right:1rem;
   width:34px; height:34px; border-radius:50%;
@@ -1206,6 +1225,10 @@ body {
 <!-- MODAL -->
 <div id="backdrop" onclick="closeModal()"></div>
 <div id="modal">
+  <!-- Drag handle — grab here and pull down to close -->
+  <div class="modal-handle-zone" id="modalHandleZone">
+    <div class="modal-drag-handle" aria-hidden="true"></div>
+  </div>
   <button class="modal-close" onclick="closeModal()">✕</button>
   <div class="modal-gallery">
     <div class="gallery-slides" id="galSlides"></div>
@@ -2624,6 +2647,105 @@ var stopMapInertia = function(){};
     if(Math.abs(dx)>40) galStep(dx<0?1:-1);
     drag=false;
   },{passive:true});
+})();
+
+/* ═══════════════════════════════════════════
+   MODAL SWIPE-DOWN TO CLOSE
+   Touch starts on .modal-handle-zone only →
+   no conflict with gallery swipe (horizontal)
+   or modal-body vertical scroll.
+═══════════════════════════════════════════ */
+(function initSwipeClose(){
+  var modal    = document.getElementById('modal');
+  var backdrop = document.getElementById('backdrop');
+  var handle   = document.getElementById('modalHandleZone');
+
+  var startY    = 0;
+  var startTime = 0;
+  var active    = false;    /* gesture in progress */
+  var CLOSE_PX  = 110;     /* px dragged down to trigger close */
+  var CLOSE_VEL = 0.45;    /* px/ms velocity threshold */
+
+  /* ── touchstart: only on the handle zone ── */
+  handle.addEventListener('touchstart', function(e){
+    if (!modal.classList.contains('open')) return;
+    active    = true;
+    startY    = e.touches[0].clientY;
+    startTime = Date.now();
+    /* Disable CSS transition while finger is down for 1:1 tracking */
+    modal.classList.remove('swipe-snap');
+    modal.style.transition = 'none';
+  }, { passive: true });
+
+  /* ── touchmove: follow finger downward only ── */
+  document.addEventListener('touchmove', function(e){
+    if (!active) return;
+    var dy = Math.max(0, e.touches[0].clientY - startY); /* clamp at 0 — no upward drag */
+    /* Rubber-band resistance beyond 200 px so it doesn't fly away */
+    var disp = dy < 200 ? dy : 200 + (dy - 200) * 0.25;
+    modal.style.transform  = 'translateY(' + disp + 'px)';
+    /* Fade backdrop proportionally */
+    if (backdrop) backdrop.style.opacity = Math.max(0, 1 - disp / 300);
+  }, { passive: true });
+
+  /* ── touchend: decide close or spring back ── */
+  document.addEventListener('touchend', function(e){
+    if (!active) return;
+    active = false;
+
+    var dy       = Math.max(0, e.changedTouches[0].clientY - startY);
+    var velocity = dy / Math.max(1, Date.now() - startTime);  /* px/ms */
+    var shouldClose = dy > CLOSE_PX || velocity > CLOSE_VEL;
+
+    if (shouldClose) {
+      /* 1. Animate the modal downward off-screen */
+      modal.style.transition = 'transform .26s ease-in, opacity .26s ease-in';
+      modal.style.transform  = 'translateY(105%)';
+      modal.style.opacity    = '0';
+
+      setTimeout(function(){
+        /* 2. Disable transition, jump to right-hidden position (matches CSS default) */
+        modal.style.transition = 'none';
+        modal.style.transform  = 'translateX(100%)';
+        modal.style.opacity    = '';
+        if (backdrop) backdrop.style.opacity = '';
+
+        /* 3. Call regular close (removes .open class, stops gallery etc.) */
+        closeModal();
+
+        /* 4. Restore inline overrides → CSS takes over cleanly next open */
+        requestAnimationFrame(function(){
+          modal.style.transition = '';
+          modal.style.transform  = '';
+        });
+      }, 270);
+
+    } else {
+      /* Spring back to original position */
+      modal.classList.add('swipe-snap');
+      modal.style.transform = '';           /* CSS .open rule: translateX(0) */
+      if (backdrop) backdrop.style.opacity = '';
+      modal.addEventListener('transitionend', function cleanup(){
+        modal.classList.remove('swipe-snap');
+        modal.style.transition = '';
+        modal.removeEventListener('transitionend', cleanup);
+      });
+    }
+  }, { passive: true });
+
+  /* Cancel if touch is interrupted (call, notification, etc.) */
+  document.addEventListener('touchcancel', function(){
+    if (!active) return;
+    active = false;
+    modal.classList.add('swipe-snap');
+    modal.style.transform = '';
+    if (backdrop) backdrop.style.opacity = '';
+    modal.addEventListener('transitionend', function cleanup(){
+      modal.classList.remove('swipe-snap');
+      modal.style.transition = '';
+      modal.removeEventListener('transitionend', cleanup);
+    });
+  }, { passive: true });
 })();
 
 /* galIdx/galLen at top */
