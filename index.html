@@ -798,6 +798,46 @@ body {
   display:flex; align-items:center; justify-content:center;
 }
 
+/* Share button — mirrors close button on the left */
+.modal-share {
+  position:absolute; top:1rem; left:1rem;
+  width:34px; height:34px; border-radius:50%;
+  background:var(--ink); border:none; color:var(--white);
+  cursor:pointer; z-index:5;
+  display:flex; align-items:center; justify-content:center;
+}
+.modal-share:active { opacity:.65; }
+
+/* ── Photo swipe hint — centered over the gallery ── */
+#photo-hint {
+  position:absolute; top:50%; left:50%;
+  z-index:4; pointer-events:none; display:none;
+}
+#photo-hint.show {
+  display:block;
+  animation:photoHintPop 2.8s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes photoHintPop {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(.82); }
+  18%  { opacity:1; transform:translate(-50%,-50%) scale(1);   }
+  72%  { opacity:1; transform:translate(-50%,-50%) scale(1);   }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(.93); }
+}
+.photo-hint-inner {
+  background:rgba(0,0,0,.60);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:2rem;
+  padding:.55rem 1.3rem .55rem 1rem;
+  display:flex; align-items:center; gap:.65rem;
+  white-space:nowrap;
+}
+.photo-hint-inner span {
+  font-family:'Inter',sans-serif;
+  font-size:.76rem; font-weight:400; letter-spacing:.02em;
+  color:rgba(255,255,255,.92);
+}
+
 /* Gallery */
 .modal-gallery { position:relative; width:100%; height:52vw; min-height:200px; max-height:280px; overflow:hidden; background:var(--sand); flex-shrink:0; }
 .gallery-slides { display:flex; height:100%; transition:transform .45s cubic-bezier(.77,0,.175,1); }
@@ -1229,13 +1269,36 @@ body {
   <div class="modal-handle-zone" id="modalHandleZone">
     <div class="modal-drag-handle" aria-hidden="true"></div>
   </div>
-  <button class="modal-close" onclick="closeModal()">✕</button>
+  <button class="modal-close" onclick="closeModal()" aria-label="Schließen">✕</button>
+  <button class="modal-share" id="shareBtn" onclick="shareStop()" aria-label="Teilen">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M7.5 1 L7.5 9.5"/>
+      <path d="M4.5 3.5 L7.5 1 L10.5 3.5"/>
+      <path d="M4 7 L2 7 L2 13 L13 13 L13 7 L11 7"/>
+    </svg>
+  </button>
   <div class="modal-gallery">
     <div class="gallery-slides" id="galSlides"></div>
     <div class="gallery-nav"    id="galNav"></div>
     <button class="gal-arr prev" onclick="galStep(-1)">‹</button>
     <button class="gal-arr next" onclick="galStep(+1)">›</button>
     <div class="gal-progress" id="galProgress" style="display:none"><div class="gal-progress-fill" id="galProgressFill"></div></div>
+    <!-- Photo swipe hint — shown once per session when gallery has multiple photos -->
+    <div id="photo-hint" aria-hidden="true">
+      <div class="photo-hint-inner">
+        <svg width="38" height="22" viewBox="0 0 38 22" fill="none" aria-hidden="true">
+          <!-- left arrow -->
+          <path d="M6 11 L1 11" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M3.5 8.5 L1 11 L3.5 13.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- finger -->
+          <rect x="12" y="3" width="14" height="16" rx="7" fill="white" opacity=".8"/>
+          <!-- right arrow -->
+          <path d="M32 11 L37 11" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M34.5 8.5 L37 11 L34.5 13.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="photoHintText">Fotos wischen</span>
+      </div>
+    </div>
   </div>
   <div class="modal-body" id="modalBody"></div>
 </div>
@@ -1808,6 +1871,8 @@ const LANG = {
     hintZoom:      'Zoomen',
     hintPan:       'Bewegen',
     hintTrack:     'Frei auf der Karte navigieren',
+    hintPhoto:     'Fotos wischen',
+    shareCopied:   'Link kopiert ✓',
     stopSubs:  [
       'Die älteste Bank der Welt',
       'Die älteste Quelle Sienas',
@@ -1866,6 +1931,8 @@ const LANG = {
     hintZoom:      'Ingrandisci',
     hintPan:       'Sposta',
     hintTrack:     'Naviga liberamente sulla mappa',
+    hintPhoto:     'Scorri le foto',
+    shareCopied:   'Link copiato ✓',
     stopSubs:  [
       'La banca più antica del mondo',
       'La fonte più antica di Siena',
@@ -1924,6 +1991,8 @@ const LANG = {
     hintZoom:      'Zoom',
     hintPan:       'Pan',
     hintTrack:     'Navigate freely on the map',
+    hintPhoto:     'Swipe photos',
+    shareCopied:   'Link copied ✓',
     stopSubs:  [
       "The world's oldest bank",
       'The oldest fountain of Siena',
@@ -2044,6 +2113,8 @@ function setLang(lang){
   if (hintZoomEl && t.hintZoom) hintZoomEl.textContent = t.hintZoom;
   if (hintPanEl  && t.hintPan)  hintPanEl.textContent  = t.hintPan;
   if (hintTextEl && t.hintTrack) hintTextEl.textContent = t.hintTrack;
+  var photoHintEl = document.getElementById('photoHintText');
+  if (photoHintEl && t.hintPhoto) photoHintEl.textContent = t.hintPhoto;
 
   /* ── Live-update open modal if visible ── */
   var modal = document.getElementById('modal');
@@ -2157,6 +2228,42 @@ function showToast(msg, dur){
 function hideToast(){ clearTimeout(toastTmr); document.getElementById('track-toast').classList.remove('show'); }
 
 /* ── Map interaction hint ─────────────────────────────────────────── */
+/* ── Photo swipe hint ─────────────────────────────── */
+var _photoHintTmr = null;
+function showPhotoHint(){
+  if (sessionStorage.getItem('photoHintSeen')) return;
+  var el = document.getElementById('photo-hint');
+  if (!el) return;
+  clearTimeout(_photoHintTmr);
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  _photoHintTmr = setTimeout(function(){
+    el.classList.remove('show');
+    sessionStorage.setItem('photoHintSeen', '1');
+  }, 2900);
+}
+
+/* ── Share current stop via Web Share API (clipboard fallback) ── */
+function shareStop(){
+  var s = activeStop >= 0 ? STOPS[activeStop] : null;
+  var lang = LANG[currentLang] || LANG.de;
+  var shareData = {
+    title: s ? ('Siena \u2014 ' + s.name) : 'Siena Stadtf\u00fchrer',
+    text:  s ? s.sub : 'Ein interaktiver Stadtf\u00fchrer durch Sienas historisches Zentrum.',
+    url:   'https://sienastadtfuehrer.de'
+  };
+  if (navigator.share) {
+    navigator.share(shareData).catch(function(){/* user cancelled — ignore */});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(shareData.url)
+      .then(function(){ showToast(lang.shareCopied || 'Link kopiert \u2713', 2500); })
+      .catch(function(){ showToast('sienastadtfuehrer.de', 3500); });
+  } else {
+    showToast('sienastadtfuehrer.de', 3500);
+  }
+}
+
 var _mapHintTmr = null;
 function showMapHint(){
   /* Show only once per session — regular users won't be nagged */
@@ -2784,6 +2891,8 @@ function openModal(idx){
   document.getElementById('backdrop').classList.add('open');
   galTo(0, true);
   startGalAuto();
+  /* Show swipe hint only when there are multiple photos to swipe between */
+  if (galLen > 1) showPhotoHint();
 }
 
 function closeModal(){
