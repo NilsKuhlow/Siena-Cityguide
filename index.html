@@ -1326,11 +1326,12 @@ function triggerMapIntro(){
   if (mapShown) return;
   mapShown = true;
 
-  /* Snap scroll to the exact start of the journey section.
-     This kills any carry-over momentum so the map always opens
-     cleanly at stop 0, not mid-way between stop 0 and 1.
-     The clip-path reveal animation visually hides the scroll snap. */
+  /* Snap scroll to the exact start of the journey section and kill momentum.
+     overflow:hidden trick stops native iOS/Android touch inertia; scrollTo
+     then positions at journeyTop; rAF restores scrollability. */
+  document.body.style.overflow = 'hidden';
   window.scrollTo(0, getJourneyTop());
+  requestAnimationFrame(function(){ document.body.style.overflow = ''; });
 
   const map = document.getElementById('map-panel');
   const svg = document.getElementById('mapSvg');
@@ -1557,18 +1558,25 @@ function onScroll(){
     introEl.style.transform = 'translate3d(0,0,0)';
   }
 
-  /* Map visibility — start revealing at 70 % of intro so map fades in
-     while intro is still partially visible; eliminates the white-gap flash */
-  if (sy < introH * 0.70){
+  /* Map visibility — fade in at 70 % of intro to avoid white-gap flash.
+     Keep stop logic gated until near the actual intro end so that a hard
+     swipe from the landing page cannot advance the first dot before the
+     momentum-killing snap in triggerMapIntro() fires. */
+  if (sy < introH * 0.70) {
     map.classList.remove('map-intro');
     map.style.pointerEvents = 'none';
     resetMap();
     return;
   }
 
-  /* First time past intro → trigger map intro animation */
+  /* Show map visually as soon as 70 % is crossed */
+  map.classList.add('map-intro');
+
+  /* But don't drive stops or snap scroll until we're close to journey start */
+  if (!mapShown && sy < introH - 60) return;
+
+  /* First time crossing into journey: snap + momentum kill */
   if (!mapShown) triggerMapIntro();
-  else map.classList.add('map-intro'); // keep visible on subsequent scrolls back
 
   /* Compute globalT from scroll position within #journey */
   const journeyTop = getJourneyTop();
