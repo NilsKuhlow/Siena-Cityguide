@@ -2088,9 +2088,14 @@ function closeInfoCard(){
 
 /* Find the stop index whose dot is within TAP_R SVG-units of (sx, sy).
    Returns -1 if none close enough. Uses WAYPOINTS which match dot CX/CY. */
-var TAP_R_SQ = 38 * 38;   /* tap radius: 38 SVG units (~40 px at default zoom) */
-function findNearestStop(sx, sy){
-  var best = -1, bestD = TAP_R_SQ;
+/* Adaptive tap radius: always ~60 screen-px regardless of zoom level.
+   vbW = current viewBox width, rectW = layer width in CSS pixels.
+   svgPerPx = SVG units per screen pixel at current zoom → radius in SVG units. */
+function findNearestStop(sx, sy, vbW, rectW){
+  var svgPerPx = vbW / rectW;
+  var tapR     = 60 * svgPerPx;          /* 60 px → SVG units */
+  var bestD    = tapR * tapR;
+  var best     = -1;
   for (var i = 0; i < WAYPOINTS.length; i++){
     var dx = WAYPOINTS[i].x - sx, dy = WAYPOINTS[i].y - sy;
     var d2 = dx * dx + dy * dy;
@@ -2235,7 +2240,14 @@ var stopMapInertia = function(){};
   layer.addEventListener('touchmove', function(e){
     if (!_vb0) return;
     e.preventDefault();
-    _didMove = true;
+
+    /* Only count as a real move if finger travelled > 10 px — filters out
+       natural finger tremor so short taps still trigger the info card. */
+    if (!_didMove && _t0){
+      var mdx = e.touches[0].clientX - _t0.clientX;
+      var mdy = e.touches[0].clientY - _t0.clientY;
+      if (mdx*mdx + mdy*mdy > 100) _didMove = true;  /* 10 px threshold */
+    }
 
     var rect = layer.getBoundingClientRect();
     var now  = performance.now();
@@ -2311,7 +2323,7 @@ var stopMapInertia = function(){};
           var vb2   = getVB();
           var svgX  = vb2.x + (_t0.clientX - rect2.left) / rect2.width  * vb2.w;
           var svgY  = vb2.y + (_t0.clientY - rect2.top)  / rect2.height * vb2.h;
-          var hitIdx = findNearestStop(svgX, svgY);
+          var hitIdx = findNearestStop(svgX, svgY, vb2.w, rect2.width);
           if (hitIdx >= 0){
             openInfoCard(hitIdx);   /* zoom to stop + show info card */
             didOpenCard = true;
