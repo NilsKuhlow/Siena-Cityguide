@@ -40,7 +40,7 @@ html, body { width:100%; overflow-x:hidden; }
 body {
   font-family:'Inter',sans-serif;
   font-weight:400;
-  background:var(--white);
+  background:var(--ink);   /* dark base prevents white flash during intro→map transition */
   color:var(--ink);
 }
 
@@ -1557,9 +1557,9 @@ function onScroll(){
     introEl.style.transform = 'translate3d(0,0,0)';
   }
 
-  /* Map visibility */
-  if (sy < introH - 60){
-    /* Still in intro */
+  /* Map visibility — start revealing at 70 % of intro so map fades in
+     while intro is still partially visible; eliminates the white-gap flash */
+  if (sy < introH * 0.70){
     map.classList.remove('map-intro');
     map.style.pointerEvents = 'none';
     resetMap();
