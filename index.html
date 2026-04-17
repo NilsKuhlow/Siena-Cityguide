@@ -1866,6 +1866,7 @@ function onGeoError(err){
 }
 
 function returnToGps(){
+  stopMapInertia();    /* kill momentum before animating back */
   mapUserPanned = false;
   document.getElementById('return-btn').classList.remove('show');
   if (lastGpsLat === null) return;
@@ -1923,22 +1924,48 @@ function toggleTrack(){
    Single-finger: pan. Two-finger: pinch-zoom.
    Moving away from GPS position shows "Standort" return button.
 ═══════════════════════════════════════════ */
+/* ── stopMapInertia: exposed so returnToGps() can kill momentum before animating ── */
+var stopMapInertia = function(){};
+
 (function(){
-  /* Uses #map-touch-layer (touch-action:none) so the browser never
-     tries to scroll — no preventDefault() needed on its own.
-     Overlay is only .active when trackActive = true. */
+  /* ═══════════════════════════════════════════════════════════════
+     MAP TOUCH  –  pan + pinch-zoom + momentum (inertia)
+     Active only while #map-touch-layer has class .active.
+
+     Technique:
+       • Single-finger drag  → pan (translate viewBox origin)
+       • Two-finger pinch    → zoom + pan simultaneously;
+                               the SVG point under the finger midpoint
+                               stays fixed as fingers spread/shrink
+       • Lift fingers        → inertia: velocity decays with friction
+                               until the map glides to a stop
+       • Bare tap (no move)  → restore GPS auto-follow
+  ═══════════════════════════════════════════════════════════════ */
   var layer = document.getElementById('map-touch-layer');
   var svg   = document.getElementById('mapSvg');
 
   var CANVAS_W = 1000, CANVAS_H = 750;
   var MIN_VB_W = 80,   MAX_VB_W = 900;
+  var FRICTION  = 0.92;   /* velocity multiplier per frame (~60 fps) */
+  var VEL_STOP  = 0.003;  /* SVG-units/ms below which inertia stops   */
+  var VEL_ALPHA = 0.6;    /* EMA weight for velocity smoothing         */
 
-  var _t0 = null, _t1 = null;
-  var _vb0 = null;
-  var _d0  = 0;
-  var _cx0 = 0, _cy0 = 0;
+  /* ── gesture state ── */
+  var _t0 = null, _t1 = null;  /* touch start positions (client px)   */
+  var _vb0 = null;              /* viewBox snapshot at gesture start    */
+  var _d0  = 0;                 /* initial pinch distance               */
+  var _anchor = null;           /* SVG-space midpoint anchor for pinch  */
   var _didMove = false;
 
+  /* ── velocity state (SVG units / ms) ── */
+  var _velX = 0, _velY = 0;
+  var _prevCX = 0, _prevCY = 0;
+  var _prevT  = 0;
+
+  /* ── inertia RAF ── */
+  var _inertiaId = 0;
+
+  /* ─────────────────── helpers ─────────────────── */
   function clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
 
   function touchDist(a, b){
@@ -1946,96 +1973,169 @@ function toggleTrack(){
     return Math.sqrt(dx*dx + dy*dy);
   }
 
-  function svgMid(a, b){
-    var rect = layer.getBoundingClientRect();
-    var vb   = svg.viewBox.baseVal;
-    return {
-      x: vb.x + ((a.clientX + b.clientX) / 2 - rect.left) / rect.width  * vb.width,
-      y: vb.y + ((a.clientY + b.clientY) / 2 - rect.top)  / rect.height * vb.height
-    };
+  function getVB(){
+    var b = svg.viewBox.baseVal;
+    return { x: b.x, y: b.y, w: b.width, h: b.height };
   }
 
+  /* Write a clamped viewBox. Returns the clamped {x,y,w,h}. */
   function applyVB(x, y, w, h){
-    var aspect = _vb0 ? _vb0.h / _vb0.w : 0.75;
+    var aspect = _vb0 ? _vb0.h / _vb0.w : (CANVAS_H / CANVAS_W);
     w = clamp(w, MIN_VB_W, MAX_VB_W);
     h = clamp(h, MIN_VB_W * aspect, MAX_VB_W * aspect);
     x = clamp(x, 0, Math.max(0, CANVAS_W - w));
     y = clamp(y, 0, Math.max(0, CANVAS_H - h));
     svg.setAttribute('viewBox',
-      x.toFixed(1)+' '+y.toFixed(1)+' '+w.toFixed(1)+' '+h.toFixed(1));
+      x.toFixed(2)+' '+y.toFixed(2)+' '+w.toFixed(2)+' '+h.toFixed(2));
+    return { x:x, y:y, w:w, h:h };
   }
 
-  /* ── touchstart ──
-     preventDefault() is critical on iOS Safari: it tells the browser
-     immediately to NOT take over the gesture as a scroll — before any
-     touchmove fires. cancelAnimVB() stops GPS animation in its tracks.
-     mapUserPanned = true blocks new GPS auto-pans for this gesture.
-     We do NOT show the return-btn yet — only after real movement. */
-  layer.addEventListener('touchstart', function(e){
-    e.preventDefault();        /* iOS: kill scroll take-over before touchmove */
-    cancelAnimVB();            /* stop any in-flight GPS animation */
-    mapUserPanned = true;      /* block GPS auto-pan for duration of gesture */
+  /* ─────────────────── inertia ─────────────────── */
+  stopMapInertia = function(){ _inertiaId++; };
 
-    var vb = svg.viewBox.baseVal;
-    _vb0 = { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
-    _didMove = false;
+  function startInertia(){
+    stopMapInertia();
+    var id = ++_inertiaId;
+    var vb = getVB();
+    var ix = vb.x, iy = vb.y, iw = vb.w, ih = vb.h;
+    var vx = _velX, vy = _velY;
+    var last = performance.now();
+
+    (function tick(now){
+      if (_inertiaId !== id) return;
+      var dt = Math.min(now - last, 32);  /* cap at 2 frames to avoid jump on tab-switch */
+      last = now;
+
+      /* Per-frame friction (frame-rate independent) */
+      var f = Math.pow(FRICTION, dt / 16.667);
+      vx *= f; vy *= f;
+      if (Math.abs(vx) < VEL_STOP && Math.abs(vy) < VEL_STOP) return;
+
+      ix += vx * dt;
+      iy += vy * dt;
+      ix = clamp(ix, 0, Math.max(0, CANVAS_W - iw));
+      iy = clamp(iy, 0, Math.max(0, CANVAS_H - ih));
+      svg.setAttribute('viewBox',
+        ix.toFixed(2)+' '+iy.toFixed(2)+' '+iw.toFixed(2)+' '+ih.toFixed(2));
+      requestAnimationFrame(tick);
+    })(last);
+  }
+
+  /* ─────────────────── touchstart ─────────────────── */
+  layer.addEventListener('touchstart', function(e){
+    e.preventDefault();      /* iOS Safari: must call before any touchmove */
+    cancelAnimVB();          /* kill GPS glide animation */
+    stopMapInertia();        /* kill any running momentum */
+    mapUserPanned = true;
+    _didMove   = false;
+    _velX = _velY = 0;
+    _vb0 = getVB();
 
     if (e.touches.length === 1){
       _t0 = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
       _t1 = null;
+      _anchor = null;
+      _prevCX = _t0.clientX;
+      _prevCY = _t0.clientY;
+      _prevT  = performance.now();
+
     } else if (e.touches.length >= 2){
       _t0 = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
       _t1 = { clientX: e.touches[1].clientX, clientY: e.touches[1].clientY };
       _d0 = touchDist(_t0, _t1);
-      var c = svgMid(_t0, _t1);
-      _cx0 = c.x; _cy0 = c.y;
+      /* Compute the SVG-space point that sits under the finger midpoint.
+         This point stays fixed as the fingers spread/shrink/move. */
+      var rect = layer.getBoundingClientRect();
+      var mx = (_t0.clientX + _t1.clientX) / 2;
+      var my = (_t0.clientY + _t1.clientY) / 2;
+      _anchor = {
+        x: _vb0.x + (mx - rect.left) / rect.width  * _vb0.w,
+        y: _vb0.y + (my - rect.top)  / rect.height * _vb0.h
+      };
     }
   }, { passive: false });
 
-  /* ── touchmove: pan or pinch-zoom ── */
+  /* ─────────────────── touchmove ─────────────────── */
   layer.addEventListener('touchmove', function(e){
     if (!_vb0) return;
     e.preventDefault();
     _didMove = true;
 
     var rect = layer.getBoundingClientRect();
+    var now  = performance.now();
 
     if (e.touches.length === 1 && _t0 && !_t1){
-      /* PAN */
-      var dxSvg = (e.touches[0].clientX - _t0.clientX) * (_vb0.w / rect.width);
-      var dySvg = (e.touches[0].clientY - _t0.clientY) * (_vb0.h / rect.height);
+      /* ── PAN ── */
+      var cx = e.touches[0].clientX;
+      var cy = e.touches[0].clientY;
+
+      /* Translate viewBox opposite to drag direction */
+      var dxSvg = (cx - _t0.clientX) * (_vb0.w / rect.width);
+      var dySvg = (cy - _t0.clientY) * (_vb0.h / rect.height);
       applyVB(_vb0.x - dxSvg, _vb0.y - dySvg, _vb0.w, _vb0.h);
 
-    } else if (e.touches.length >= 2 && _t0 && _t1){
-      /* PINCH-ZOOM */
+      /* Velocity: EMA-smoothed, SVG-units/ms */
+      var dt = now - _prevT;
+      if (dt > 4){
+        var rawVX = -(cx - _prevCX) * (_vb0.w / rect.width) / dt;
+        var rawVY = -(cy - _prevCY) * (_vb0.h / rect.height) / dt;
+        _velX = VEL_ALPHA * rawVX + (1 - VEL_ALPHA) * _velX;
+        _velY = VEL_ALPHA * rawVY + (1 - VEL_ALPHA) * _velY;
+        _prevCX = cx; _prevCY = cy;
+        _prevT  = now;
+      }
+
+    } else if (e.touches.length >= 2 && _t0 && _t1 && _anchor){
+      /* ── PINCH-ZOOM + simultaneous PAN ──
+         The SVG anchor point (captured at touchstart) must stay
+         visually fixed under the current finger midpoint. */
       var d1    = touchDist(e.touches[0], e.touches[1]);
       var scale = _d0 / Math.max(d1, 1);
-      applyVB(_cx0 - _vb0.w*scale/2, _cy0 - _vb0.h*scale/2,
-              _vb0.w * scale, _vb0.h * scale);
+      var newW  = _vb0.w * scale;
+      var newH  = _vb0.h * scale;
+
+      /* Current midpoint in screen-fractional coords */
+      var mx2 = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      var my2 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      var fracX = (mx2 - rect.left) / rect.width;
+      var fracY = (my2 - rect.top)  / rect.height;
+
+      /* Anchor must appear at (fracX, fracY) of new viewBox */
+      applyVB(_anchor.x - fracX * newW,
+              _anchor.y - fracY * newH,
+              newW, newH);
     }
 
-    /* Show return button only after real movement (not on tap) */
-    if (_didMove && !document.getElementById('return-btn').classList.contains('show')){
+    /* Show return button on first real movement */
+    if (!document.getElementById('return-btn').classList.contains('show')){
       document.getElementById('return-btn').classList.add('show');
     }
   }, { passive: false });
 
-  /* ── touchend: re-anchor for pinch→pan; restore GPS on bare tap ── */
+  /* ─────────────────── touchend ─────────────────── */
   layer.addEventListener('touchend', function(e){
     if (e.touches.length === 1){
-      /* Pinch → single-finger: re-anchor from current position */
-      var vb = svg.viewBox.baseVal;
-      _vb0 = { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
-      _t0  = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
-      _t1  = null;
+      /* Pinch released one finger → re-anchor for continued single-finger pan */
+      _vb0    = getVB();
+      _t0     = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+      _t1     = null;
+      _anchor = null;
+      _velX = _velY = 0;
+      _prevCX = _t0.clientX; _prevCY = _t0.clientY;
+      _prevT  = performance.now();
       _didMove = false;
+
     } else if (e.touches.length === 0){
       /* All fingers lifted */
       if (!_didMove){
-        /* Pure tap — restore GPS auto-follow (no pan happened) */
+        /* Pure tap → restore GPS auto-follow */
         mapUserPanned = false;
+        document.getElementById('return-btn').classList.remove('show');
+      } else if (_t0 && !_t1){
+        /* Pan gesture ended → launch momentum */
+        startInertia();
       }
-      _t0 = _t1 = _vb0 = null;
+      _t0 = _t1 = _vb0 = _anchor = null;
     }
   }, { passive: true });
 
