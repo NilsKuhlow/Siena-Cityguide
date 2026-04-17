@@ -210,6 +210,7 @@ body {
   opacity:0; pointer-events:none;
   transition:opacity .4s, background .25s, border-color .25s, color .25s;
   -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;   /* removes 300 ms tap delay on iOS Safari */
   user-select:none;
 }
 #track-btn.show  { opacity:1; pointer-events:auto; }
@@ -1989,9 +1990,15 @@ function onGeoSuccess(pos){
 }
 
 function onGeoError(err){
-  const msgs = {1:'Standortzugriff verweigert',2:'Standort nicht verfügbar',3:'Zeitüberschreitung'};
-  showToast(msgs[err.code]||'GPS-Fehler', 3500);
+  /* stopTrack() calls hideToast() — so we must call it FIRST,
+     then showToast() so the error message stays visible. */
   stopTrack();
+  const msgs = {
+    1: 'GPS-Zugriff verweigert — Standort in den Einstellungen erlauben',
+    2: 'Standort nicht verfügbar',
+    3: 'GPS-Zeitüberschreitung — erneut versuchen'
+  };
+  showToast(msgs[err.code] || 'GPS-Fehler', 5000);
 }
 
 function returnToGps(){
