@@ -10,6 +10,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
+<!-- Preload map SVG and first-stop images — fetched before any JS runs -->
+<link rel="preload" href="NOLLI_PLAN_FINAL.svg" as="image" fetchpriority="high">
+<link rel="preload" href="img/stop0/Website-11.jpg" as="image">
+<link rel="preload" href="img/stop0/Website-6.jpg" as="image">
 
 <style>
 /* ═══════════════════════════════════════════
@@ -1266,6 +1270,27 @@ const STOPS = [
     ]
   }
 ];
+
+/* ═══════════════════════════════════════════
+   ASSET PRELOADER
+   Fires immediately while the loader animation
+   plays (~4 s). Creates Image objects for every
+   slide so the browser fetches and caches them
+   in the background — gallery + map open instantly.
+═══════════════════════════════════════════ */
+(function preloadAll(){
+  /* 1. All slide images */
+  STOPS.forEach(function(stop){
+    stop.slides.forEach(function(slide){
+      var m = slide.bg.match(/url\('([^']+)'\)/);
+      if (!m) return;
+      var img = new Image();
+      img.src = m[1];
+    });
+  });
+  /* 2. Map SVG (belt-and-suspenders alongside the <link rel=preload>) */
+  fetch('NOLLI_PLAN_FINAL.svg', { priority: 'high' }).catch(function(){});
+})();
 
 /* ═══════════════════════════════
    ROUTE
