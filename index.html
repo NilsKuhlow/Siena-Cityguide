@@ -258,6 +258,56 @@ body {
 }
 #track-toast.show { opacity:1; }
 
+/* ── Map interaction hint (appears briefly when track mode activates) ── */
+#map-hint {
+  position:fixed; top:50%; left:50%;
+  z-index:300; pointer-events:none;
+  display:none;
+}
+#map-hint.show {
+  display:block;
+  animation:mapHintPop 3.2s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes mapHintPop {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(.82); }
+  16%  { opacity:1; transform:translate(-50%,-50%) scale(1);   }
+  70%  { opacity:1; transform:translate(-50%,-50%) scale(1);   }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(.93); }
+}
+.map-hint-inner {
+  background:rgba(10,10,10,.84);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:1.3rem;
+  padding:1.2rem 2rem 1.1rem;
+  display:flex; flex-direction:column; align-items:center; gap:.8rem;
+  min-width:200px;
+  box-shadow:0 8px 40px rgba(0,0,0,.5);
+}
+.map-hint-icons {
+  display:flex; align-items:center; gap:1.5rem;
+}
+.map-hint-divider {
+  width:1px; height:30px;
+  background:rgba(255,255,255,.18);
+}
+.hint-icon { display:block; }
+.map-hint-label {
+  font-family:'Inter',sans-serif;
+  font-size:.62rem; font-weight:500;
+  letter-spacing:.1em; text-transform:uppercase;
+  color:rgba(255,255,255,.5);
+  text-align:center;
+}
+.map-hint-text {
+  font-family:'Inter',sans-serif;
+  font-size:.82rem; font-weight:400;
+  letter-spacing:.01em;
+  color:rgba(255,255,255,.9);
+  text-align:center;
+}
+
 /* Return-to-location button — appears when user manually pans in track mode */
 #return-btn {
   position:fixed;
@@ -914,6 +964,50 @@ body {
   <span id="track-label">Smart-Track</span>
 </button>
 <div id="track-toast"></div>
+
+<!-- Map interaction hint — appears briefly on first GPS track activation -->
+<div id="map-hint" aria-hidden="true">
+  <div class="map-hint-inner">
+    <div class="map-hint-icons">
+      <!-- Pinch-to-zoom icon -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.4rem;">
+        <svg class="hint-icon" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- finger 1 -->
+          <ellipse cx="11" cy="29" rx="3.2" ry="3.5" fill="white" opacity=".72"/>
+          <line x1="11" y1="25.5" x2="7.5" y2="14" stroke="white" stroke-width="2.2" stroke-linecap="round" opacity=".72"/>
+          <!-- finger 2 -->
+          <ellipse cx="27" cy="29" rx="3.2" ry="3.5" fill="white" opacity=".72"/>
+          <line x1="27" y1="25.5" x2="30.5" y2="14" stroke="white" stroke-width="2.2" stroke-linecap="round" opacity=".72"/>
+          <!-- spread arrow left -->
+          <path d="M5 17 L7.5 14 L10.5 16.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <!-- spread arrow right -->
+          <path d="M33 17 L30.5 14 L27.5 16.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span class="map-hint-label" id="hintLabelZoom">Zoomen</span>
+      </div>
+      <div class="map-hint-divider"></div>
+      <!-- Pan/drag icon -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.4rem;">
+        <svg class="hint-icon" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- center finger -->
+          <ellipse cx="19" cy="21" rx="3.4" ry="3.8" fill="white" opacity=".72"/>
+          <!-- up -->
+          <line x1="19" y1="17" x2="19" y2="9" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16 12 L19 9 L22 12" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <!-- right -->
+          <line x1="22.5" y1="21" x2="30" y2="21" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <path d="M27 18 L30 21 L27 24" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <!-- left -->
+          <line x1="15.5" y1="21" x2="8" y2="21" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 18 L8 21 L11 24" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span class="map-hint-label" id="hintLabelPan">Bewegen</span>
+      </div>
+    </div>
+    <p class="map-hint-text" id="mapHintText">Frei auf der Karte navigieren</p>
+  </div>
+</div>
+
 <button id="return-btn" onclick="returnToGps()" aria-label="Zurück zum Standort">
   <svg class="r-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
     <circle cx="7" cy="7" r="3.5"/>
@@ -1682,6 +1776,9 @@ const LANG = {
     imp_note:        'Diese Website ist ein nicht-kommerzielles Hochschulprojekt und dient ausschließlich akademischen Zwecken. Alle verwendeten Inhalte sind urheberrechtlich geschützt. Eine kommerzielle Nutzung ist nicht gestattet.',
     modal_station: 'Station',
     modal_of:      'von',
+    hintZoom:      'Zoomen',
+    hintPan:       'Bewegen',
+    hintTrack:     'Frei auf der Karte navigieren',
     stopSubs:  [
       'Die älteste Bank der Welt',
       'Die älteste Quelle Sienas',
@@ -1737,6 +1834,9 @@ const LANG = {
     imp_note:        "Questo sito web è un progetto universitario non commerciale e serve esclusivamente a scopi accademici. Tutti i contenuti sono protetti da copyright. Non è consentito alcun utilizzo commerciale.",
     modal_station: 'Stazione',
     modal_of:      'di',
+    hintZoom:      'Ingrandisci',
+    hintPan:       'Sposta',
+    hintTrack:     'Naviga liberamente sulla mappa',
     stopSubs:  [
       'La banca più antica del mondo',
       'La fonte più antica di Siena',
@@ -1792,6 +1892,9 @@ const LANG = {
     imp_note:        'This website is a non-commercial university project for academic purposes only. All content is copyright protected. Commercial use is not permitted.',
     modal_station: 'Station',
     modal_of:      'of',
+    hintZoom:      'Zoom',
+    hintPan:       'Pan',
+    hintTrack:     'Navigate freely on the map',
     stopSubs:  [
       "The world's oldest bank",
       'The oldest fountain of Siena',
@@ -1905,6 +2008,14 @@ function setLang(lang){
   var dn = document.getElementById('drawer-num');
   if (dn && activeStop >= 0) dn.textContent = t.modal_station + ' 0' + (activeStop + 1) + ' \u2014 0' + (activeStop + 1) + ' / 08';
 
+  /* ── Update hint overlay texts (so language switch works mid-session) ── */
+  var hintZoomEl = document.getElementById('hintLabelZoom');
+  var hintPanEl  = document.getElementById('hintLabelPan');
+  var hintTextEl = document.getElementById('mapHintText');
+  if (hintZoomEl && t.hintZoom) hintZoomEl.textContent = t.hintZoom;
+  if (hintPanEl  && t.hintPan)  hintPanEl.textContent  = t.hintPan;
+  if (hintTextEl && t.hintTrack) hintTextEl.textContent = t.hintTrack;
+
   /* ── Live-update open modal if visible ── */
   var modal = document.getElementById('modal');
   if (modal && modal.classList.contains('open') && activeStop >= 0) {
@@ -2015,6 +2126,23 @@ function showToast(msg, dur){
   if (dur) toastTmr = setTimeout(()=>t.classList.remove('show'), dur);
 }
 function hideToast(){ clearTimeout(toastTmr); document.getElementById('track-toast').classList.remove('show'); }
+
+/* ── Map interaction hint ─────────────────────────────────────────── */
+var _mapHintTmr = null;
+function showMapHint(){
+  /* Show only once per session — regular users won't be nagged */
+  if (sessionStorage.getItem('mapHintSeen')) return;
+  var el = document.getElementById('map-hint');
+  if (!el) return;
+  clearTimeout(_mapHintTmr);
+  el.classList.remove('show');
+  void el.offsetWidth; /* force reflow so animation restarts cleanly */
+  el.classList.add('show');
+  _mapHintTmr = setTimeout(function(){
+    el.classList.remove('show');
+    sessionStorage.setItem('mapHintSeen', '1');
+  }, 3300);
+}
 
 /* Initialize Leaflet map once */
 function haversine(a, b){
@@ -2145,6 +2273,7 @@ function toggleTrack(){
   btn.classList.add('acquiring');
   document.getElementById('track-label').textContent='Orten…';
   showToast('Standort wird ermittelt…');
+  showMapHint(); /* brief gesture hint on first activation */
 
   /* Single watchPosition call — Safari silently drops the second geolocation
      request when getCurrentPosition + watchPosition are called simultaneously.
