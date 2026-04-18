@@ -1034,6 +1034,17 @@ body {
 .fact        { background:var(--off); padding:.75rem .9rem; border-left:2px solid var(--terra); }
 .fact-lbl    { font-family:'Inter',sans-serif; font-size:.55rem; font-weight:500; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin-bottom:.2rem; }
 .fact-val    { font-family:'Cormorant Garamond',serif; font-size:1rem; color:var(--ink); }
+/* Walking-time badge shown at bottom of route-stop modals */
+.modal-walk {
+  display:flex; align-items:center; gap:.45rem;
+  margin-top:1.4rem;
+  padding:.55rem .85rem;
+  background:var(--off);
+  border-left:2px solid var(--terra);
+  font-family:'Inter',sans-serif; font-size:.75rem;
+  color:var(--muted); line-height:1.3;
+}
+.modal-walk svg { flex-shrink:0; opacity:.7; }
 
 /* Modal body, generous padding, never clipped */
 .modal-body  { padding: 1.8rem 1.5rem 3.5rem 1.5rem; }
@@ -1540,6 +1551,13 @@ var snapping      = false;
 /* ═══════════════════════════════
    DATA
 ═══════════════════════════════ */
+
+/* Walking time in minutes between consecutive route stops (stop N → stop N+1).
+   Calculated from straight-line GPS distance × 1.3 routing factor ÷ 80 m/min.
+   Stop 0→1: ~7 min  |  1→2: ~4 min  |  2→3: ~2 min  |  3→4: ~6 min
+   Stop 4→5: ~1 min  |  5→6: ~2 min  |  6→7: ~4 min                    */
+const WALK_MINS = [7, 4, 2, 6, 1, 2, 4];
+
 const STOPS = [
   {
     num:"01", name:"Banca Monte dei Paschi", sub:"Die älteste Bank der Welt",
@@ -3573,6 +3591,18 @@ function openModal(idx, _placeObj){
     ? ''
     : `<div class="modal-num">${t.modal_station} ${s.num} ${t.modal_of} 08</div>`;
 
+  /* Walking badge: show time to next stop for all but the last stop */
+  const stopIdx = _placeObj ? -1 : (parseInt(s.num, 10) - 1);
+  const walkMins = (!_placeObj && stopIdx >= 0 && stopIdx < WALK_MINS.length)
+    ? WALK_MINS[stopIdx] : null;
+  const walkHtml = walkMins ? `
+    <div class="modal-walk">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="5" r="2"/><path d="M5 22l3-8 2 3 2-8 3 8"/><path d="M9 14l-2 8m10-8 2 8"/>
+      </svg>
+      <span>ca. ${walkMins} Min. Fußweg zur nächsten Station</span>
+    </div>` : '';
+
   document.getElementById('modalBody').innerHTML = `
     ${numLine}
     <div class="modal-title">${s.name}</div>
@@ -3581,7 +3611,8 @@ function openModal(idx, _placeObj){
     ${s.paras.map(p=>`<p class="modal-text">${p}</p>`).join('')}
     <div class="modal-facts">
       ${s.facts.map(f=>`<div class="fact"><div class="fact-lbl">${f.l}</div><div class="fact-val">${f.v}</div></div>`).join('')}
-    </div>`;
+    </div>
+    ${walkHtml}`;
 
   /* Hide navigation when there's only one slide */
   const singleSlide = galLen <= 1;
