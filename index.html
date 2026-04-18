@@ -2982,9 +2982,24 @@ function toggleTrack(){
   showToast('Standort wird ermittelt…');
   showMapHint(); /* brief gesture hint on first activation */
 
-  /* Single watchPosition call, Safari silently drops the second geolocation
-     request when getCurrentPosition + watchPosition are called simultaneously.
-     watchPosition alone delivers an initial fix AND continuous updates. */
+  /* Two-stage fast-first-fix:
+     1) Low-accuracy (WiFi/cell) gives a position in < 1 s — dot appears instantly.
+     2) High-accuracy GPS watch then refines the position continuously.
+     Sequential calls (not simultaneous) avoid the Safari double-request bug. */
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      onGeoSuccess(pos);         /* show dot immediately */
+      startHighAccuracyWatch();  /* then refine with GPS */
+    },
+    function(){
+      startHighAccuracyWatch();  /* fast fix failed → go straight to GPS */
+    },
+    { enableHighAccuracy: false, maximumAge: 30000, timeout: 4000 }
+  );
+}
+
+function startHighAccuracyWatch(){
+  if (!trackActive) return;      /* user stopped tracking before GPS kicked in */
   watchId = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, {
     enableHighAccuracy: true,
     timeout: 20000,
