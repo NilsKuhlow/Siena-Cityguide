@@ -771,6 +771,63 @@ body {
 .sn-btn.label-show .sn-label { opacity:1; }
 
 /* ═══════════════════════════════════════════
+   JOURNEY SCROLL HINT
+   Floats above the drawer on first journey entry.
+═══════════════════════════════════════════ */
+#journey-hint {
+  position:fixed;
+  bottom:calc(var(--drawer-h, 80px) + 1.1rem);
+  left:50%; transform:translateX(-50%);
+  z-index:48; pointer-events:none;
+  display:none;
+}
+#journey-hint.show {
+  display:block;
+  animation:journeyHintPop 2.8s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes journeyHintPop {
+  0%   { opacity:0; transform:translateX(-50%) translateY(6px); }
+  18%  { opacity:1; transform:translateX(-50%) translateY(0);   }
+  72%  { opacity:1; transform:translateX(-50%) translateY(0);   }
+  100% { opacity:0; transform:translateX(-50%) translateY(4px); }
+}
+.journey-hint-inner {
+  background:rgba(10,10,10,.78);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:2rem;
+  padding:.4rem 1rem .4rem .85rem;
+  display:flex; align-items:center; gap:.55rem;
+  white-space:nowrap;
+}
+.journey-hint-inner svg { flex-shrink:0; animation:jhBounce 1.1s ease-in-out infinite; }
+@keyframes jhBounce {
+  0%,100% { transform:translateY(0); }
+  50%     { transform:translateY(3px); }
+}
+.journey-hint-inner span {
+  font-family:'Inter',sans-serif; font-weight:500;
+  font-size:.58rem; letter-spacing:.12em; text-transform:uppercase;
+  color:rgba(255,255,255,.85);
+}
+
+/* ═══════════════════════════════════════════
+   PHOTO COUNTER  — "1 / 5" overlay in gallery
+═══════════════════════════════════════════ */
+#gal-counter {
+  position:absolute; top:.55rem; right:.65rem; z-index:3;
+  font-family:'Inter',sans-serif; font-weight:500;
+  font-size:.58rem; letter-spacing:.08em;
+  color:rgba(255,255,255,.9);
+  background:rgba(0,0,0,.42);
+  backdrop-filter:blur(6px);
+  padding:.22rem .55rem;
+  border-radius:1rem;
+  pointer-events:none;
+  display:none;
+}
+
+/* ═══════════════════════════════════════════
    OUTRO
 ═══════════════════════════════════════════ */
 .outro {
@@ -1296,6 +1353,17 @@ body {
   <button class="sn-btn" onclick="scrollToStop(7)" aria-label="Station 08"><div class="sn-dot"></div><span class="sn-label">08 · Palazzo Piccolomini</span></button>
 </nav>
 
+<!-- JOURNEY SCROLL HINT -->
+<div id="journey-hint" aria-hidden="true">
+  <div class="journey-hint-inner">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+      <path d="M6.5 1 L6.5 10" stroke="rgba(255,255,255,.85)" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M3 7.5 L6.5 11 L10 7.5" stroke="rgba(255,255,255,.85)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span id="journeyHintText">Scrollen</span>
+  </div>
+</div>
+
 <!-- OUTRO -->
 <div class="outro">
   <h2>La città è un libro.<br>Leggerla è già viaggiare.</h2>
@@ -1353,6 +1421,7 @@ body {
   <div class="modal-gallery">
     <div class="gallery-slides" id="galSlides"></div>
     <div class="gallery-nav"    id="galNav"></div>
+    <span id="gal-counter" aria-live="polite"></span>
     <button class="gal-arr prev" onclick="galStep(-1)">‹</button>
     <button class="gal-arr next" onclick="galStep(+1)">›</button>
     <div class="gal-progress" id="galProgress" style="display:none"><div class="gal-progress-fill" id="galProgressFill"></div></div>
@@ -1762,6 +1831,9 @@ function activate(idx, globalT){
   document.getElementById('drawer-sub').textContent  = STOPS[idx].sub;
   document.getElementById('drawer').classList.add('open');
 
+  /* Journey scroll hint — show once on very first stop entry */
+  if (idx === 0) showJourneyHint();
+
   /* ViewBox — only animate programmatically (dotTap/scrollToStop).
      During scroll  lerpVB already drives the viewBox continuously.
      During GPS tracking moveGpsDot() drives the viewBox — skip too. */
@@ -1964,6 +2036,7 @@ const LANG = {
     hintPan:       'Bewegen',
     hintTrack:     'Frei auf der Karte navigieren',
     hintPhoto:     'Fotos wischen',
+    hintJourney:   'Scrollen',
     shareCopied:   'Link kopiert ✓',
     stopSubs:  [
       'Die älteste Bank der Welt',
@@ -2024,6 +2097,7 @@ const LANG = {
     hintPan:       'Sposta',
     hintTrack:     'Naviga liberamente sulla mappa',
     hintPhoto:     'Scorri le foto',
+    hintJourney:   'Scorri',
     shareCopied:   'Link copiato ✓',
     stopSubs:  [
       'La banca più antica del mondo',
@@ -2084,6 +2158,7 @@ const LANG = {
     hintPan:       'Pan',
     hintTrack:     'Navigate freely on the map',
     hintPhoto:     'Swipe photos',
+    hintJourney:   'Scroll',
     shareCopied:   'Link copied ✓',
     stopSubs:  [
       "The world's oldest bank",
@@ -2205,8 +2280,10 @@ function setLang(lang){
   if (hintZoomEl && t.hintZoom) hintZoomEl.textContent = t.hintZoom;
   if (hintPanEl  && t.hintPan)  hintPanEl.textContent  = t.hintPan;
   if (hintTextEl && t.hintTrack) hintTextEl.textContent = t.hintTrack;
-  var photoHintEl = document.getElementById('photoHintText');
+  var photoHintEl   = document.getElementById('photoHintText');
   if (photoHintEl && t.hintPhoto) photoHintEl.textContent = t.hintPhoto;
+  var journeyHintEl = document.getElementById('journeyHintText');
+  if (journeyHintEl && t.hintJourney) journeyHintEl.textContent = t.hintJourney;
 
   /* ── Live-update open modal if visible ── */
   var modal = document.getElementById('modal');
@@ -2318,6 +2395,22 @@ function showToast(msg, dur){
   if (dur) toastTmr = setTimeout(()=>t.classList.remove('show'), dur);
 }
 function hideToast(){ clearTimeout(toastTmr); document.getElementById('track-toast').classList.remove('show'); }
+
+/* ── Journey scroll hint ──────────────────────────────────────────── */
+var _journeyHintTmr = null;
+function showJourneyHint(){
+  if (sessionStorage.getItem('journeyHintSeen')) return;
+  var el = document.getElementById('journey-hint');
+  if (!el) return;
+  clearTimeout(_journeyHintTmr);
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  _journeyHintTmr = setTimeout(function(){
+    el.classList.remove('show');
+    sessionStorage.setItem('journeyHintSeen', '1');
+  }, 2900);
+}
 
 /* ── Map interaction hint ─────────────────────────────────────────── */
 /* ── Photo swipe hint ─────────────────────────────── */
@@ -3000,6 +3093,9 @@ function openModal(idx){
   const singleSlide = galLen <= 1;
   document.querySelectorAll('.gal-arr').forEach(a => a.style.display = singleSlide ? 'none' : '');
   document.getElementById('galNav').style.display = singleSlide ? 'none' : '';
+  /* Photo counter */
+  var cnt = document.getElementById('gal-counter');
+  if (cnt) { cnt.style.display = singleSlide ? 'none' : ''; cnt.textContent = '1 / ' + galLen; }
 
   document.getElementById('modal').classList.add('open');
   document.getElementById('backdrop').classList.add('open');
@@ -3041,6 +3137,9 @@ function galTo(i, _auto){
   galIdx = ((i % galLen) + galLen) % galLen;
   document.getElementById('galSlides').style.transform = `translateX(-${galIdx*100}%)`;
   document.querySelectorAll('.gal-pip').forEach((p,j) => p.classList.toggle('on', j===galIdx));
+  /* Photo counter */
+  var cnt = document.getElementById('gal-counter');
+  if (cnt && galLen > 1) cnt.textContent = (galIdx + 1) + ' / ' + galLen;
   /* On manual interaction, reset the countdown so each new slide gets a full 4 s */
   if (!_auto && _galAutoTimer !== null) startGalAuto();
   else if (!_auto) {} // no timer running, nothing to reset
