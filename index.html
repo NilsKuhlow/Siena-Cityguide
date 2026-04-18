@@ -710,6 +710,67 @@ body {
 #stop-counter { display:none; }
 
 /* ═══════════════════════════════════════════
+   STOP NAV — vertical jump bar (right edge)
+   Appears when drawer opens, hides otherwise.
+═══════════════════════════════════════════ */
+#stop-nav {
+  position:fixed;
+  right:0; top:50%;
+  transform:translateY(-50%);
+  z-index:49;
+  display:flex; flex-direction:column; align-items:center;
+  gap:0;
+  padding:.3rem 0;
+  /* hidden by default */
+  opacity:0; pointer-events:none;
+  transition:opacity .3s ease;
+}
+#stop-nav.open {
+  opacity:1; pointer-events:auto;
+}
+.sn-btn {
+  /* 44×44 touch target */
+  width:44px; height:44px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; border:none; background:transparent; padding:0;
+  -webkit-tap-highlight-color:transparent;
+  position:relative;
+}
+.sn-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:rgba(10,10,10,.18);
+  transition:background .2s, transform .2s, width .2s, height .2s;
+  flex-shrink:0;
+}
+.sn-btn.visited .sn-dot {
+  background:rgba(10,10,10,.35);
+}
+.sn-btn.active .sn-dot {
+  width:11px; height:11px;
+  background:var(--terra);
+  transform:scale(1);
+}
+/* Stop label tooltip on long-press / hover (desktop) */
+.sn-label {
+  position:absolute;
+  right:calc(100% + 4px);
+  top:50%; transform:translateY(-50%);
+  background:rgba(10,10,10,.82);
+  backdrop-filter:blur(8px);
+  color:#fff;
+  font-family:'Inter',sans-serif;
+  font-size:.55rem; letter-spacing:.08em; text-transform:uppercase;
+  padding:.28rem .6rem;
+  border-radius:.6rem;
+  white-space:nowrap;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .15s;
+}
+.sn-btn:hover .sn-label,
+.sn-btn.label-show .sn-label { opacity:1; }
+
+/* ═══════════════════════════════════════════
    OUTRO
 ═══════════════════════════════════════════ */
 .outro {
@@ -1223,6 +1284,18 @@ body {
 </div>
 
 
+<!-- STOP NAVIGATOR — vertical jump bar -->
+<nav id="stop-nav" aria-label="Direkt zu Station springen">
+  <button class="sn-btn" onclick="scrollToStop(0)" aria-label="Station 01"><div class="sn-dot"></div><span class="sn-label">01 · Banca Monte dei Paschi</span></button>
+  <button class="sn-btn" onclick="scrollToStop(1)" aria-label="Station 02"><div class="sn-dot"></div><span class="sn-label">02 · Fontebranda</span></button>
+  <button class="sn-btn" onclick="scrollToStop(2)" aria-label="Station 03"><div class="sn-dot"></div><span class="sn-label">03 · Battistero di San Giovanni</span></button>
+  <button class="sn-btn" onclick="scrollToStop(3)" aria-label="Station 04"><div class="sn-dot"></div><span class="sn-label">04 · Duomo di Siena</span></button>
+  <button class="sn-btn" onclick="scrollToStop(4)" aria-label="Station 05"><div class="sn-dot"></div><span class="sn-label">05 · Piazza del Campo</span></button>
+  <button class="sn-btn" onclick="scrollToStop(5)" aria-label="Station 06"><div class="sn-dot"></div><span class="sn-label">06 · Palazzo Pubblico</span></button>
+  <button class="sn-btn" onclick="scrollToStop(6)" aria-label="Station 07"><div class="sn-dot"></div><span class="sn-label">07 · Piazza del Mercato</span></button>
+  <button class="sn-btn" onclick="scrollToStop(7)" aria-label="Station 08"><div class="sn-dot"></div><span class="sn-label">08 · Palazzo Piccolomini</span></button>
+</nav>
+
 <!-- OUTRO -->
 <div class="outro">
   <h2>La città è un libro.<br>Leggerla è già viaggiare.</h2>
@@ -1634,6 +1707,17 @@ function activate(idx, globalT){
     d.setAttribute('r', i === idx ? '9' : '7');
   }
 
+  /* Stop-nav bar: show + sync active dot */
+  var snav = document.getElementById('stop-nav');
+  if (snav) {
+    snav.classList.add('open');
+    var snBtns = snav.querySelectorAll('.sn-btn');
+    for (var i = 0; i < snBtns.length; i++){
+      snBtns[i].classList.toggle('visited', i < idx);
+      snBtns[i].classList.toggle('active',  i === idx);
+    }
+  }
+
   /* Ensure drawer is open whenever activate() is called (defensive guard) */
   document.getElementById('drawer').classList.add('open');
 
@@ -1696,6 +1780,14 @@ function resetMap(){
   }
   document.getElementById('nav-crumb').classList.remove('show');
   document.getElementById('drawer').classList.remove('open');
+  /* Hide stop-nav */
+  var snav = document.getElementById('stop-nav');
+  if (snav) {
+    snav.classList.remove('open');
+    snav.querySelectorAll('.sn-btn').forEach(function(b){
+      b.classList.remove('visited','active');
+    });
+  }
 }
 
 /* ═══════════════════════════════
@@ -2856,6 +2948,28 @@ var stopMapInertia = function(){};
 })();
 
 /* galIdx/galLen at top */
+
+/* ═══════════════════════════════
+   STOP-NAV: long-press label reveal on mobile
+   Tap+hold 350ms → shows the name label next to the dot
+═══════════════════════════════ */
+(function initStopNavLabels(){
+  var snav = document.getElementById('stop-nav');
+  if (!snav) return;
+  var btns = snav.querySelectorAll('.sn-btn');
+  btns.forEach(function(btn){
+    var timer = null;
+    btn.addEventListener('touchstart', function(){
+      timer = setTimeout(function(){
+        btn.classList.add('label-show');
+        setTimeout(function(){ btn.classList.remove('label-show'); }, 1600);
+      }, 350);
+    }, { passive:true });
+    btn.addEventListener('touchend',   function(){ clearTimeout(timer); }, { passive:true });
+    btn.addEventListener('touchmove',  function(){ clearTimeout(timer); }, { passive:true });
+    btn.addEventListener('touchcancel',function(){ clearTimeout(timer); }, { passive:true });
+  });
+})();
 
 function openModal(idx){
   const s = (idx >= 0 && idx < 8) ? STOPS[idx] : STOPS[activeStop];
