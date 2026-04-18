@@ -455,30 +455,8 @@ body {
   pointer-events:none;
   /* no opacity here — children control their own visibility */
 }
-/* Left side: city + stop name — fades in when stop is active */
-.crumb-left {
-  display:flex; align-items:center; gap:.6rem;
-  opacity:0; transition:opacity .4s;
-  /* Frosted-glass pill — nav crumb is always over the light map when shown */
-  background:rgba(255,255,255,.88);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  border:1px solid rgba(0,0,0,.07);
-  border-radius:2rem;
-  padding:.35rem .85rem .35rem .75rem;
-  box-shadow:0 2px 12px rgba(0,0,0,.1);
-}
-#nav-crumb.show .crumb-left { opacity:1; }
-.crumb-city {
-  font-family:'Cormorant Garamond',serif;
-  font-size:.95rem; color:var(--ink);
-  text-shadow:none;
-}
-.crumb-sep  { color:var(--terra); font-size:.8rem; }
-.crumb-stop {
-  font-family:'Inter',sans-serif; font-weight:500;
-  font-size:.58rem; letter-spacing:.1em; text-transform:uppercase;
-  color:rgba(0,0,0,.65); text-shadow:none;
-}
+/* crumb-left removed — stop name shown in drawer instead */
+#crumb-stop { display:none; }
 
 /* ═══════════════════════════════════════════
    INTRO  (full viewport, normal flow)
@@ -849,7 +827,7 @@ body {
 ═══════════════════════════════════════════ */
 #journey-hint {
   position:fixed;
-  bottom:calc(var(--drawer-h, 80px) + 1.1rem);
+  bottom:5.8rem;   /* clears the drawer (~80px) + safe-area breathing room */
   left:50%; transform:translateX(-50%);
   z-index:48; pointer-events:none;
   display:none;
@@ -1275,11 +1253,6 @@ body {
   <span data-i18n="return_btn">Standort</span>
 </button>
 <div id="nav-crumb">
-  <div class="crumb-left">
-    <span class="crumb-city">Siena</span>
-    <span class="crumb-sep">—</span>
-    <span id="crumb-stop" class="crumb-stop"></span>
-  </div>
   <button id="places-btn" onclick="openPlaces()" aria-label="Alle Orte anzeigen">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <rect x="1" y="2.5" width="12" height="1.5" rx=".75" fill="currentColor"/>
@@ -3291,7 +3264,7 @@ function openModal(idx, _placeObj){
   document.getElementById('galNav').style.display = singleSlide ? 'none' : '';
   /* Photo counter */
   var cnt = document.getElementById('gal-counter');
-  if (cnt) { cnt.style.display = singleSlide ? 'none' : ''; cnt.textContent = '1 / ' + galLen; }
+  if (cnt) { cnt.style.display = singleSlide ? 'none' : 'block'; cnt.textContent = '1 / ' + galLen; }
 
   document.getElementById('modal').classList.add('open');
   document.getElementById('backdrop').classList.add('open');
