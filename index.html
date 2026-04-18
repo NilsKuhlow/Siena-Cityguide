@@ -710,65 +710,138 @@ body {
 #stop-counter { display:none; }
 
 /* ═══════════════════════════════════════════
-   STOP NAV — vertical jump bar (right edge)
-   Appears when drawer opens, hides otherwise.
+   PLACES BUTTON — frosted pill in nav bar
+   Shows when a stop is active (nav-crumb.show)
 ═══════════════════════════════════════════ */
-#stop-nav {
-  position:fixed;
-  right:0; top:50%;
-  transform:translateY(-50%);
-  z-index:49;
-  display:flex; flex-direction:column; align-items:center;
-  gap:0;
-  padding:.3rem 0;
-  /* hidden by default */
+#places-btn {
+  display:flex; align-items:center; gap:.45rem;
+  background:rgba(255,255,255,.88);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:2rem;
+  padding:.35rem .85rem .35rem .75rem;
+  box-shadow:0 2px 12px rgba(0,0,0,.1);
+  cursor:pointer;
+  font-family:'Inter',sans-serif; font-weight:500;
+  font-size:.58rem; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink);
   opacity:0; pointer-events:none;
-  transition:opacity .3s ease;
+  transition:opacity .4s, box-shadow .2s;
+  -webkit-tap-highlight-color:transparent;
+  white-space:nowrap;
 }
-#stop-nav.open {
+#nav-crumb.show #places-btn {
   opacity:1; pointer-events:auto;
 }
-.sn-btn {
-  /* 44×44 touch target */
-  width:44px; height:44px;
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; border:none; background:transparent; padding:0;
-  -webkit-tap-highlight-color:transparent;
-  position:relative;
+#places-btn:hover { box-shadow:0 4px 18px rgba(0,0,0,.15); }
+#places-btn svg   { flex-shrink:0; }
+
+/* ═══════════════════════════════════════════
+   PLACES PANEL — bottom sheet overlay
+═══════════════════════════════════════════ */
+#places-panel {
+  position:fixed; inset:0; z-index:200;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  pointer-events:none; opacity:0;
+  transition:opacity .3s ease;
 }
-.sn-dot {
-  width:8px; height:8px; border-radius:50%;
-  background:rgba(10,10,10,.18);
-  transition:background .2s, transform .2s, width .2s, height .2s;
+#places-panel.open {
+  pointer-events:auto; opacity:1;
+}
+.pp-backdrop {
+  position:absolute; inset:0;
+  background:rgba(0,0,0,.45);
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+.pp-sheet {
+  position:relative; z-index:1;
+  background:var(--white);
+  border-radius:1.4rem 1.4rem 0 0;
+  max-height:82vh; overflow:hidden;
+  display:flex; flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .38s cubic-bezier(.77,0,.175,1);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#places-panel.open .pp-sheet { transform:translateY(0); }
+.pp-handle-zone {
+  width:100%; padding:.7rem 0 .3rem;
+  display:flex; justify-content:center;
+  flex-shrink:0; touch-action:none; cursor:grab;
+}
+.pp-handle-zone:active { cursor:grabbing; }
+.pp-drag-handle {
+  width:40px; height:4px;
+  background:rgba(0,0,0,.13); border-radius:2px;
+}
+.pp-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.2rem 1.4rem .9rem;
+  flex-shrink:0;
+  border-bottom:1px solid var(--border);
+}
+.pp-title {
+  font-family:'Cormorant Garamond',serif; font-weight:600;
+  font-size:1.25rem; color:var(--ink);
+  margin:0;
+}
+.pp-close {
+  width:32px; height:32px; border-radius:50%;
+  background:rgba(0,0,0,.06); border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.8rem; color:var(--muted);
+  -webkit-tap-highlight-color:transparent;
   flex-shrink:0;
 }
-.sn-btn.visited .sn-dot {
-  background:rgba(10,10,10,.35);
+.pp-close:hover { background:rgba(0,0,0,.11); }
+.pp-scroll {
+  overflow-y:auto; flex:1;
+  -webkit-overflow-scrolling:touch;
 }
-.sn-btn.active .sn-dot {
-  width:11px; height:11px;
-  background:var(--terra);
-  transform:scale(1);
+/* Section headers (Route / Weitere Orte) */
+.pp-section-title {
+  font-family:'Inter',sans-serif; font-weight:600;
+  font-size:.5rem; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--terra);
+  padding:.9rem 1.4rem .4rem;
 }
-/* Stop label tooltip on long-press / hover (desktop) */
-.sn-label {
-  position:absolute;
-  right:calc(100% + 4px);
-  top:50%; transform:translateY(-50%);
-  background:rgba(10,10,10,.82);
-  backdrop-filter:blur(8px);
-  color:#fff;
-  font-family:'Inter',sans-serif;
-  font-size:.55rem; letter-spacing:.08em; text-transform:uppercase;
-  padding:.28rem .6rem;
-  border-radius:.6rem;
-  white-space:nowrap;
-  pointer-events:none;
-  opacity:0;
-  transition:opacity .15s;
+/* Individual place row */
+.pp-item {
+  width:100%; display:flex; align-items:center; gap:.9rem;
+  padding:.85rem 1.4rem;
+  border:none; background:transparent; cursor:pointer; text-align:left;
+  border-bottom:1px solid rgba(0,0,0,.045);
+  -webkit-tap-highlight-color:transparent;
+  transition:background .15s;
 }
-.sn-btn:hover .sn-label,
-.sn-btn.label-show .sn-label { opacity:1; }
+.pp-item:hover, .pp-item:active { background:rgba(0,0,0,.035); }
+.pp-item.pp-active { background:rgba(212,115,61,.07); }
+.pp-num {
+  font-family:'Inter',sans-serif; font-weight:600;
+  font-size:.55rem; letter-spacing:.1em;
+  color:var(--white); background:var(--terra);
+  border-radius:.5rem; padding:.2rem .45rem;
+  flex-shrink:0; min-width:2rem; text-align:center;
+  line-height:1.5;
+}
+.pp-num.pp-extra {
+  background:rgba(0,0,0,.12); color:var(--muted);
+}
+.pp-info { flex:1; min-width:0; text-align:left; }
+.pp-name {
+  font-family:'Cormorant Garamond',serif; font-weight:600;
+  font-size:1.05rem; color:var(--ink); line-height:1.2;
+  display:block;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pp-sub {
+  font-family:'Cormorant Garamond',serif; font-style:italic;
+  font-size:.8rem; color:var(--muted); display:block;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pp-chevron {
+  color:var(--muted); font-size:.85rem; flex-shrink:0; opacity:.5;
+}
 
 /* ═══════════════════════════════════════════
    JOURNEY SCROLL HINT
@@ -1207,6 +1280,14 @@ body {
     <span class="crumb-sep">—</span>
     <span id="crumb-stop" class="crumb-stop"></span>
   </div>
+  <button id="places-btn" onclick="openPlaces()" aria-label="Alle Orte anzeigen">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1" y="2.5" width="12" height="1.5" rx=".75" fill="currentColor"/>
+      <rect x="1" y="6.25" width="12" height="1.5" rx=".75" fill="currentColor"/>
+      <rect x="1" y="10"   width="12" height="1.5" rx=".75" fill="currentColor"/>
+    </svg>
+    <span id="placesBtnLabel">Orte</span>
+  </button>
   <nav id="lang-switch" aria-label="Sprache wählen / Language">
     <button class="lang-btn active" data-lang="de" aria-label="Deutsch">DE</button>
     <span class="lang-sep" aria-hidden="true">·</span>
@@ -1341,17 +1422,22 @@ body {
 </div>
 
 
-<!-- STOP NAVIGATOR — vertical jump bar -->
-<nav id="stop-nav" aria-label="Direkt zu Station springen">
-  <button class="sn-btn" onclick="scrollToStop(0)" aria-label="Station 01"><div class="sn-dot"></div><span class="sn-label">01 · Banca Monte dei Paschi</span></button>
-  <button class="sn-btn" onclick="scrollToStop(1)" aria-label="Station 02"><div class="sn-dot"></div><span class="sn-label">02 · Fontebranda</span></button>
-  <button class="sn-btn" onclick="scrollToStop(2)" aria-label="Station 03"><div class="sn-dot"></div><span class="sn-label">03 · Battistero di San Giovanni</span></button>
-  <button class="sn-btn" onclick="scrollToStop(3)" aria-label="Station 04"><div class="sn-dot"></div><span class="sn-label">04 · Duomo di Siena</span></button>
-  <button class="sn-btn" onclick="scrollToStop(4)" aria-label="Station 05"><div class="sn-dot"></div><span class="sn-label">05 · Piazza del Campo</span></button>
-  <button class="sn-btn" onclick="scrollToStop(5)" aria-label="Station 06"><div class="sn-dot"></div><span class="sn-label">06 · Palazzo Pubblico</span></button>
-  <button class="sn-btn" onclick="scrollToStop(6)" aria-label="Station 07"><div class="sn-dot"></div><span class="sn-label">07 · Piazza del Mercato</span></button>
-  <button class="sn-btn" onclick="scrollToStop(7)" aria-label="Station 08"><div class="sn-dot"></div><span class="sn-label">08 · Palazzo Piccolomini</span></button>
-</nav>
+<!-- PLACES PANEL — bottom sheet -->
+<div id="places-panel" role="dialog" aria-modal="true" aria-labelledby="ppTitle">
+  <div class="pp-backdrop" onclick="closePlaces()"></div>
+  <div class="pp-sheet">
+    <div class="pp-handle-zone" id="ppHandleZone">
+      <div class="pp-drag-handle" aria-hidden="true"></div>
+    </div>
+    <div class="pp-header">
+      <h3 class="pp-title" id="ppTitle">Orte in Siena</h3>
+      <button class="pp-close" onclick="closePlaces()" aria-label="Schließen">✕</button>
+    </div>
+    <div class="pp-scroll" id="ppScroll">
+      <!-- dynamically rendered by renderPlacesList() -->
+    </div>
+  </div>
+</div>
 
 <!-- JOURNEY SCROLL HINT -->
 <div id="journey-hint" aria-hidden="true">
@@ -1621,6 +1707,24 @@ const STOPS = [
 })();
 
 /* ═══════════════════════════════
+   EXTRA PLACES
+   Not part of the route — shown in the places panel
+   alongside the route stops but don't affect the map trail.
+   Add entries here with the same shape as STOPS objects.
+   Example entry (remove the comment syntax to activate):
+   {
+     name:"Oratorio di San Bernardino",
+     sub:"Gotische Kapelle neben dem Dom",
+     paras:["Textabsatz 1 …", "Textabsatz 2 …"],
+     facts:[{l:"Erbaut",v:"15. Jhd."},{l:"Stil",v:"Gotik"}],
+     slides:[{bg:"url('img/extra/oratorio.jpg') center/cover no-repeat",cap:"Oratorio di San Bernardino"}]
+   }
+═══════════════════════════════ */
+const EXTRA_PLACES = [
+  /* Füge hier weitere Orte hinzu */
+];
+
+/* ═══════════════════════════════
    ROUTE
 ═══════════════════════════════ */
 const TRAIL = [
@@ -1776,17 +1880,6 @@ function activate(idx, globalT){
     d.setAttribute('r', i === idx ? '9' : '7');
   }
 
-  /* Stop-nav bar: show + sync active dot */
-  var snav = document.getElementById('stop-nav');
-  if (snav) {
-    snav.classList.add('open');
-    var snBtns = snav.querySelectorAll('.sn-btn');
-    for (var i = 0; i < snBtns.length; i++){
-      snBtns[i].classList.toggle('visited', i < idx);
-      snBtns[i].classList.toggle('active',  i === idx);
-    }
-  }
-
   /* Ensure drawer is open whenever activate() is called (defensive guard) */
   document.getElementById('drawer').classList.add('open');
 
@@ -1852,14 +1945,6 @@ function resetMap(){
   }
   document.getElementById('nav-crumb').classList.remove('show');
   document.getElementById('drawer').classList.remove('open');
-  /* Hide stop-nav */
-  var snav = document.getElementById('stop-nav');
-  if (snav) {
-    snav.classList.remove('open');
-    snav.querySelectorAll('.sn-btn').forEach(function(b){
-      b.classList.remove('visited','active');
-    });
-  }
 }
 
 /* ═══════════════════════════════
@@ -2037,6 +2122,10 @@ const LANG = {
     hintTrack:     'Frei auf der Karte navigieren',
     hintPhoto:     'Fotos wischen',
     hintJourney:   'Scrollen',
+    ppTitle:       'Orte in Siena',
+    ppRoute:       'Route',
+    ppExtra:       'Weitere Orte',
+    placesBtnLbl:  'Orte',
     shareCopied:   'Link kopiert ✓',
     stopSubs:  [
       'Die älteste Bank der Welt',
@@ -2098,6 +2187,10 @@ const LANG = {
     hintTrack:     'Naviga liberamente sulla mappa',
     hintPhoto:     'Scorri le foto',
     hintJourney:   'Scorri',
+    ppTitle:       'Luoghi a Siena',
+    ppRoute:       'Percorso',
+    ppExtra:       'Altri luoghi',
+    placesBtnLbl:  'Luoghi',
     shareCopied:   'Link copiato ✓',
     stopSubs:  [
       'La banca più antica del mondo',
@@ -2159,6 +2252,10 @@ const LANG = {
     hintTrack:     'Navigate freely on the map',
     hintPhoto:     'Swipe photos',
     hintJourney:   'Scroll',
+    ppTitle:       'Places in Siena',
+    ppRoute:       'Route',
+    ppExtra:       'More places',
+    placesBtnLbl:  'Places',
     shareCopied:   'Link copied ✓',
     stopSubs:  [
       "The world's oldest bank",
@@ -2305,6 +2402,12 @@ function setLang(lang){
       if (sf[k]) facts[k].querySelector('.fact-lbl').textContent = sf[k].l;
     }
   }
+  /* ── Update places button label ── */
+  var pbl = document.getElementById('placesBtnLabel');
+  if (pbl && t.placesBtnLbl) pbl.textContent = t.placesBtnLbl;
+  /* ── Re-render places panel list if it's open ── */
+  var pp = document.getElementById('places-panel');
+  if (pp && pp.classList.contains('open')) renderPlacesList();
 }
 
 /* ── Wire lang buttons via addEventListener (reliable cross-browser) ── */
@@ -3042,30 +3145,118 @@ var stopMapInertia = function(){};
 
 /* galIdx/galLen at top */
 
-/* ═══════════════════════════════
-   STOP-NAV: long-press label reveal on mobile
-   Tap+hold 350ms → shows the name label next to the dot
-═══════════════════════════════ */
-(function initStopNavLabels(){
-  var snav = document.getElementById('stop-nav');
-  if (!snav) return;
-  var btns = snav.querySelectorAll('.sn-btn');
-  btns.forEach(function(btn){
-    var timer = null;
-    btn.addEventListener('touchstart', function(){
-      timer = setTimeout(function(){
-        btn.classList.add('label-show');
-        setTimeout(function(){ btn.classList.remove('label-show'); }, 1600);
-      }, 350);
-    }, { passive:true });
-    btn.addEventListener('touchend',   function(){ clearTimeout(timer); }, { passive:true });
-    btn.addEventListener('touchmove',  function(){ clearTimeout(timer); }, { passive:true });
-    btn.addEventListener('touchcancel',function(){ clearTimeout(timer); }, { passive:true });
+/* ═══════════════════════════════════════════
+   PLACES PANEL
+   openPlaces()    — renders list + opens sheet
+   closePlaces()   — closes sheet
+   openExtraPlace(placeObj) — opens modal with extra
+                              place content (no route num)
+   renderPlacesList() — builds the scrollable list HTML;
+                        called each open so language is fresh
+═══════════════════════════════════════════ */
+function renderPlacesList(){
+  var t    = LANG[currentLang] || LANG.de;
+  var subs = t.stopSubs || [];
+  var html = '';
+
+  /* ── Route stops ── */
+  html += '<div class="pp-section-title" id="ppRouteLabel">' + (t.ppRoute || 'Route') + '</div>';
+  STOPS.forEach(function(s, i){
+    var sub = subs[i] || s.sub;
+    var isActive = (i === activeStop) ? ' pp-active' : '';
+    html += '<button class="pp-item' + isActive + '" onclick="closePlaces();openModal(' + i + ');" aria-label="' + s.name + '">'
+          + '<span class="pp-num">' + s.num + '</span>'
+          + '<span class="pp-info">'
+          +   '<span class="pp-name">' + s.name + '</span>'
+          +   '<span class="pp-sub">'  + sub    + '</span>'
+          + '</span>'
+          + '<span class="pp-chevron" aria-hidden="true">›</span>'
+          + '</button>';
   });
+
+  /* ── Extra places (non-route) ── */
+  if (EXTRA_PLACES.length > 0) {
+    html += '<div class="pp-section-title" id="ppExtraLabel">' + (t.ppExtra || 'Weitere Orte') + '</div>';
+    EXTRA_PLACES.forEach(function(p, j){
+      html += '<button class="pp-item" onclick="closePlaces();openExtraPlace(' + j + ');" aria-label="' + p.name + '">'
+            + '<span class="pp-num pp-extra">+</span>'
+            + '<span class="pp-info">'
+            +   '<span class="pp-name">' + p.name + '</span>'
+            +   '<span class="pp-sub">'  + p.sub  + '</span>'
+            + '</span>'
+            + '<span class="pp-chevron" aria-hidden="true">›</span>'
+            + '</button>';
+    });
+  }
+
+  document.getElementById('ppScroll').innerHTML = html;
+
+  /* Update panel title + button label in current language */
+  var titleEl = document.getElementById('ppTitle');
+  if (titleEl) titleEl.textContent = t.ppTitle || 'Orte in Siena';
+}
+
+function openPlaces(){
+  renderPlacesList();
+  document.getElementById('places-panel').classList.add('open');
+  document.body.style.overflow = 'hidden'; /* prevent background scroll */
+}
+
+function closePlaces(){
+  document.getElementById('places-panel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* Modal for extra places (not on route) — reuses the same modal UI
+   but without a "Station X von 08" counter */
+function openExtraPlace(j){
+  var p = EXTRA_PLACES[j];
+  if (!p) return;
+  /* reuse openModal with a sentinel that skips the route-stop logic */
+  openModal(-99, p);
+}
+
+/* Swipe-down to close the places panel */
+(function initSwipePlaces(){
+  var panel  = document.getElementById('places-panel');
+  var sheet  = panel ? panel.querySelector('.pp-sheet') : null;
+  var handle = document.getElementById('ppHandleZone');
+  if (!panel || !sheet || !handle) return;
+  var startY = 0, active = false, CLOSE_PX = 90, CLOSE_VEL = 0.4;
+
+  handle.addEventListener('touchstart', function(e){
+    if (!panel.classList.contains('open')) return;
+    active = true; startY = e.touches[0].clientY;
+    sheet.style.transition = 'none';
+  }, { passive:true });
+
+  document.addEventListener('touchmove', function(e){
+    if (!active) return;
+    var dy = Math.max(0, e.touches[0].clientY - startY);
+    var disp = dy < 160 ? dy : 160 + (dy - 160) * 0.25;
+    sheet.style.transform = 'translateY(' + disp + 'px)';
+  }, { passive:true });
+
+  document.addEventListener('touchend', function(e){
+    if (!active) return; active = false;
+    var dy = Math.max(0, e.changedTouches[0].clientY - startY);
+    var vel = dy / Math.max(1, Date.now() - (e.timeStamp - dy));
+    if (dy > CLOSE_PX) {
+      sheet.style.transition = '';
+      closePlaces();
+      requestAnimationFrame(function(){ sheet.style.transform = ''; });
+    } else {
+      sheet.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+      sheet.style.transform = '';
+      sheet.addEventListener('transitionend', function cleanup(){
+        sheet.style.transition = ''; sheet.removeEventListener('transitionend', cleanup);
+      });
+    }
+  }, { passive:true });
 })();
 
-function openModal(idx){
-  const s = (idx >= 0 && idx < 8) ? STOPS[idx] : STOPS[activeStop];
+function openModal(idx, _placeObj){
+  const s = _placeObj || ((idx >= 0 && idx < 8) ? STOPS[idx] : STOPS[activeStop]);
   if (!s) return;
   galIdx = 0; galLen = s.slides.length;
 
@@ -3079,8 +3270,13 @@ function openModal(idx){
   document.getElementById('galNav').innerHTML = s.slides.map((_,i) =>
     `<div class="gal-pip${i===0?' on':''}" onclick="galTo(${i})"></div>`).join('');
 
+  /* Show "Station X von 08" only for route stops, not extra places */
+  const numLine = _placeObj
+    ? ''
+    : `<div class="modal-num">${t.modal_station} ${s.num} ${t.modal_of} 08</div>`;
+
   document.getElementById('modalBody').innerHTML = `
-    <div class="modal-num">${t.modal_station} ${s.num} ${t.modal_of} 08</div>
+    ${numLine}
     <div class="modal-title">${s.name}</div>
     <span class="modal-sub">${s.sub}</span>
     <div class="modal-rule"></div>
@@ -3148,7 +3344,10 @@ function galTo(i, _auto){
 function galStep(d){ galTo(galIdx + d); }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape')     closeModal();
+  if (e.key === 'Escape') {
+    if (document.getElementById('places-panel').classList.contains('open')) closePlaces();
+    else closeModal();
+  }
   if (e.key === 'ArrowRight') galStep(1);
   if (e.key === 'ArrowLeft')  galStep(-1);
 });
