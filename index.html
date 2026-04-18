@@ -1889,7 +1889,7 @@ function activate(idx, globalT){
   /* Crumb */
   const crumb = document.getElementById('nav-crumb');
   crumb.classList.add('show');
-  document.getElementById('crumb-stop').textContent = STOPS[idx].name;
+  var _cs = document.getElementById('crumb-stop'); if (_cs) _cs.textContent = STOPS[idx].name;
 
   /* Drawer — combined label: "STATION 01 — 01/08" */
   document.getElementById('drawer-num').textContent  = (LANG[currentLang]||LANG.de).modal_station + ' 0' + (idx+1) + ' \u2014 0' + (idx+1) + ' / 08';
